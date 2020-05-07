@@ -268,9 +268,7 @@ struct _virStorageSource {
     virStorageNetHostDefPtr hosts;
     virStorageSourcePoolDefPtr srcpool;
     virStorageAuthDefPtr auth;
-    bool authInherited;
     virStorageEncryptionPtr encryption;
-    bool encryptionInherited;
     virStoragePRDefPtr pr;
 
     virStorageSourceNVMeDefPtr nvme; /* type == VIR_STORAGE_TYPE_NVME */
