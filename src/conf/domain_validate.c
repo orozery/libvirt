@@ -120,13 +120,12 @@ virDomainDiskDefValidate(const virDomainDef *def,
                              "device='lun'"), disk->dst);
             return -1;
         }
-    }
-
-    if (disk->src->pr &&
-        disk->device != VIR_DOMAIN_DISK_DEVICE_LUN) {
-        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
-                       _("<reservations/> allowed only for lun devices"));
-        return -1;
+    } else {
+        if (disk->src->pr) {
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                           _("<reservations/> allowed only for lun devices"));
+            return -1;
+        }
     }
 
     /* Reject disks with a bus type that is not compatible with the
@@ -143,22 +142,22 @@ virDomainDiskDefValidate(const virDomainDef *def,
         return -1;
     }
 
-    if (disk->queues && disk->bus != VIR_DOMAIN_DISK_BUS_VIRTIO) {
-        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
-                       _("queues attribute in disk driver element is only "
-                         "supported by virtio-blk"));
-        return -1;
-    }
+    if (disk->bus != VIR_DOMAIN_DISK_BUS_VIRTIO) {
+        if (disk->model == VIR_DOMAIN_DISK_MODEL_VIRTIO ||
+            disk->model == VIR_DOMAIN_DISK_MODEL_VIRTIO_TRANSITIONAL ||
+            disk->model == VIR_DOMAIN_DISK_MODEL_VIRTIO_NON_TRANSITIONAL) {
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                           _("disk model '%s' not supported for bus '%s'"),
+                           virDomainDiskModelTypeToString(disk->model),
+                           virDomainDiskBusTypeToString(disk->bus));
+            return -1;
+        }
 
-    if (disk->bus != VIR_DOMAIN_DISK_BUS_VIRTIO &&
-        (disk->model == VIR_DOMAIN_DISK_MODEL_VIRTIO ||
-         disk->model == VIR_DOMAIN_DISK_MODEL_VIRTIO_TRANSITIONAL ||
-         disk->model == VIR_DOMAIN_DISK_MODEL_VIRTIO_NON_TRANSITIONAL)) {
-        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
-                       _("disk model '%s' not supported for bus '%s'"),
-                       virDomainDiskModelTypeToString(disk->model),
-                       virDomainDiskBusTypeToString(disk->bus));
-        return -1;
+        if (disk->queues) {
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                           _("queues attribute in disk driver element is only supported by virtio-blk"));
+            return -1;
+        }
     }
 
     if (disk->src->type == VIR_STORAGE_TYPE_NVME) {
