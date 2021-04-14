@@ -30,3 +30,5 @@ int virSecurityDeviceLabelDefValidateXML(virSecurityDeviceLabelDefPtr *seclabels
                                          size_t nvmSeclabels);
 int virDomainDiskDefValidate(const virDomainDef *def,
                              const virDomainDiskDef *disk);
+
+int virDomainDiskDefValidateSource(const virStorageSource *src);
