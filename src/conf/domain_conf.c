@@ -2068,8 +2068,9 @@ virDomainDefGetVcpusTopology(const virDomainDef *def,
 }
 
 
-virDomainDiskDefPtr
-virDomainDiskDefNew(virDomainXMLOptionPtr xmlopt)
+static virDomainDiskDefPtr
+virDomainDiskDefNewSource(virDomainXMLOptionPtr xmlopt,
+                          virStorageSource **src)
 {
     virDomainDiskDefPtr ret;
 
@@ -2084,11 +2085,21 @@ virDomainDiskDefNew(virDomainXMLOptionPtr xmlopt)
         !(ret->privateData = xmlopt->privateData.diskNew()))
         goto error;
 
+    ret->src = g_steal_pointer(src);
     return ret;
 
  error:
     virDomainDiskDefFree(ret);
     return NULL;
+}
+
+
+virDomainDiskDefPtr
+virDomainDiskDefNew(virDomainXMLOptionPtr xmlopt)
+{
+    g_autoptr(virStorageSource) src = virStorageSourceNew();
+
+    return virDomainDiskDefNewSource(xmlopt, &src);
 }
 
 
@@ -10373,13 +10384,16 @@ virDomainDiskDefParseSourceXML(virDomainXMLOptionPtr xmlopt,
                                xmlXPathContextPtr ctxt,
                                unsigned int flags)
 {
-    g_autoptr(virDomainDiskDef) diskdef = NULL;
+    virDomainDiskDefPtr diskdef = NULL;
+    virStorageSourcePtr ret;
 
     if (!(diskdef = virDomainDiskDefParseXML(xmlopt, node, ctxt,
                                              flags | VIR_DOMAIN_DEF_PARSE_DISK_SOURCE)))
         return NULL;
 
-    return g_steal_pointer(&diskdef->src);
+    ret = g_steal_pointer(&diskdef->src);
+    virDomainDiskDefFree(diskdef);
+    return ret;
 }
 
 
