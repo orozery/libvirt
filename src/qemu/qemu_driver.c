@@ -18523,7 +18523,6 @@ qemuDomainBlockCopy(virDomainPtr dom, const char *disk, const char *destxml,
     unsigned long long bandwidth = 0;
     unsigned int granularity = 0;
     unsigned long long buf_size = 0;
-    virDomainDiskDefPtr diskdef = NULL;
     virStorageSourcePtr dest = NULL;
     size_t i;
 
@@ -18579,18 +18578,14 @@ qemuDomainBlockCopy(virDomainPtr dom, const char *disk, const char *destxml,
         }
     }
 
-    if (!(diskdef = virDomainDiskDefParse(destxml, driver->xmlopt,
-                                          VIR_DOMAIN_DEF_PARSE_INACTIVE |
-                                          VIR_DOMAIN_DEF_PARSE_DISK_SOURCE)))
+    if (!(dest = virDomainDiskDefParseSource(destxml, driver->xmlopt,
+                                             VIR_DOMAIN_DEF_PARSE_INACTIVE)))
         goto cleanup;
-
-    dest = g_steal_pointer(&diskdef->src);
 
     ret = qemuDomainBlockCopyCommon(vm, dom->conn, disk, dest, bandwidth,
                                     granularity, buf_size, flags, false);
 
  cleanup:
-    virDomainDiskDefFree(diskdef);
     virDomainObjEndAPI(&vm);
     return ret;
 }
