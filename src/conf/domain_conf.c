@@ -9904,6 +9904,86 @@ virDomainDiskDefParsePrivateData(xmlXPathContextPtr ctxt,
 }
 
 
+static virStorageSourcePtr
+virDomainDiskDefParseSourceXML(virDomainXMLOptionPtr xmlopt,
+                               xmlNodePtr node,
+                               xmlXPathContextPtr ctxt,
+                               unsigned int flags)
+{
+    g_autoptr(virStorageSource) src = virStorageSourceNew();
+    VIR_XPATH_NODE_AUTORESTORE(ctxt);
+    g_autofree char *type = NULL;
+    xmlNodePtr tmp;
+
+    ctxt->node = node;
+
+    src->type = VIR_STORAGE_TYPE_FILE;
+
+    if ((type = virXMLPropString(node, "type")) &&
+        (src->type = virStorageTypeFromString(type)) <= 0) {
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                       _("unknown disk type '%s'"), type);
+        return NULL;
+    }
+
+    if ((tmp = virXPathNode("./source[1]", ctxt))) {
+        if (virDomainStorageSourceParse(tmp, ctxt, src, flags, xmlopt) < 0)
+            return NULL;
+
+        if (!(flags & VIR_DOMAIN_DEF_PARSE_INACTIVE)) {
+            g_autofree char *sourceindex = NULL;
+
+            if ((sourceindex = virXMLPropString(tmp, "index")) &&
+                virStrToLong_uip(sourceindex, NULL, 10, &src->id) < 0) {
+                virReportError(VIR_ERR_XML_ERROR,
+                               _("invalid disk index '%s'"), sourceindex);
+                return NULL;
+            }
+        }
+    } else {
+        /* Reset src->type in case when 'source' was not present */
+        src->type = VIR_STORAGE_TYPE_FILE;
+    }
+
+    if (virXPathNode("./readonly[1]", ctxt))
+        src->readonly = true;
+
+    if (virXPathNode("./shareable[1]", ctxt))
+        src->shared = true;
+
+    if ((tmp = virXPathNode("./auth", ctxt))) {
+        /* If we've already parsed <source> and found an <auth> child,
+         * then generate an error to avoid ambiguity */
+        if (src->auth) {
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                           _("an <auth> definition already found for disk source"));
+            return NULL;
+        }
+
+        if (!(src->auth = virStorageAuthDefParse(tmp, ctxt)))
+            return NULL;
+    }
+
+    if ((tmp = virXPathNode("./encryption", ctxt))) {
+        /* If we've already parsed <source> and found an <encryption> child,
+         * then generate an error to avoid ambiguity */
+        if (src->encryption) {
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                           _("an <encryption> definition already found for disk source"));
+            return NULL;
+        }
+
+        if (!(src->encryption = virStorageEncryptionParseNode(tmp, ctxt)))
+            return NULL;
+    }
+
+    if (virDomainDiskBackingStoreParse(ctxt, src, flags, xmlopt) < 0)
+        return NULL;
+
+    return g_steal_pointer(&src);
+}
+
+
 #define VENDOR_LEN  8
 #define PRODUCT_LEN 16
 
@@ -9920,8 +10000,6 @@ virDomainDiskDefParseXML(virDomainXMLOptionPtr xmlopt,
     xmlNodePtr cur;
     VIR_XPATH_NODE_AUTORESTORE(ctxt);
     bool source = false;
-    virStorageEncryptionPtr encryption = NULL;
-    g_autoptr(virStorageAuthDef) authdef = NULL;
     g_autofree char *tmp = NULL;
     g_autofree char *snapshot = NULL;
     g_autofree char *rawio = NULL;
@@ -9938,23 +10016,18 @@ virDomainDiskDefParseXML(virDomainXMLOptionPtr xmlopt,
     g_autofree char *vendor = NULL;
     g_autofree char *product = NULL;
     g_autofree char *domain_name = NULL;
+    g_autoptr(virStorageSource) src = NULL;
 
-    if (!(def = virDomainDiskDefNew(xmlopt)))
+    if (!(src = virDomainDiskDefParseSourceXML(xmlopt, node, ctxt, flags)))
+        return NULL;
+
+    if (!(def = virDomainDiskDefNewSource(xmlopt, &src)))
         return NULL;
 
     ctxt->node = node;
 
     /* defaults */
-    def->src->type = VIR_STORAGE_TYPE_FILE;
     def->device = VIR_DOMAIN_DISK_DEVICE_DISK;
-
-    if ((tmp = virXMLPropString(node, "type")) &&
-        (def->src->type = virStorageTypeFromString(tmp)) <= 0) {
-        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
-                       _("unknown disk type '%s'"), tmp);
-        goto error;
-    }
-    VIR_FREE(tmp);
 
     if ((tmp = virXMLPropString(node, "device")) &&
         (def->device = virDomainDiskDeviceTypeFromString(tmp)) < 0) {
@@ -9982,20 +10055,10 @@ virDomainDiskDefParseXML(virDomainXMLOptionPtr xmlopt,
             continue;
 
         if (!source && virXMLNodeNameEqual(cur, "source")) {
-            if (virDomainStorageSourceParse(cur, ctxt, def->src, flags, xmlopt) < 0)
-                goto error;
-
             source = true;
 
             startupPolicy = virXMLPropString(cur, "startupPolicy");
 
-            if (!(flags & VIR_DOMAIN_DEF_PARSE_INACTIVE) &&
-                (tmp = virXMLPropString(cur, "index")) &&
-                virStrToLong_uip(tmp, NULL, 10, &def->src->id) < 0) {
-                virReportError(VIR_ERR_XML_ERROR, _("invalid disk index '%s'"), tmp);
-                goto error;
-            }
-            VIR_FREE(tmp);
         } else if (!target &&
                    virXMLNodeNameEqual(cur, "target")) {
             target = virXMLPropString(cur, "dev");
@@ -10047,27 +10110,15 @@ virDomainDiskDefParseXML(virDomainXMLOptionPtr xmlopt,
                    !(flags & VIR_DOMAIN_DEF_PARSE_INACTIVE)) {
             if (virDomainDiskDefMirrorParse(def, cur, ctxt, flags, xmlopt) < 0)
                 goto error;
-        } else if (!authdef &&
-                   virXMLNodeNameEqual(cur, "auth")) {
-            if (!(authdef = virStorageAuthDefParse(cur, ctxt)))
-                goto error;
+        } else if (virXMLNodeNameEqual(cur, "auth")) {
             def->diskElementAuth = true;
         } else if (virXMLNodeNameEqual(cur, "iotune")) {
             if (virDomainDiskDefIotuneParse(def, ctxt) < 0)
                 goto error;
-        } else if (virXMLNodeNameEqual(cur, "readonly")) {
-            def->src->readonly = true;
-        } else if (virXMLNodeNameEqual(cur, "shareable")) {
-            def->src->shared = true;
         } else if (virXMLNodeNameEqual(cur, "transient")) {
             def->transient = true;
-        } else if (!encryption &&
-                   virXMLNodeNameEqual(cur, "encryption")) {
-            if (!(encryption = virStorageEncryptionParseNode(cur, ctxt)))
-                goto error;
-
+        } else if (virXMLNodeNameEqual(cur, "encryption")) {
             def->diskElementEnc = true;
-
         } else if (!serial &&
                    virXMLNodeNameEqual(cur, "serial")) {
             serial = (char *)xmlNodeGetContent(cur);
@@ -10118,10 +10169,6 @@ virDomainDiskDefParseXML(virDomainXMLOptionPtr xmlopt,
             def->diskElementEnc = !!secretEnc;
         }
     }
-
-    /* Reset def->src->type in case when 'source' was not present */
-    if (!source)
-        def->src->type = VIR_STORAGE_TYPE_FILE;
 
     /* Only CDROM and Floppy devices are allowed missing source path
      * to indicate no media present. LUN is for raw access CD-ROMs
@@ -10267,39 +10314,11 @@ virDomainDiskDefParseXML(virDomainXMLOptionPtr xmlopt,
     }
 
     def->dst = g_steal_pointer(&target);
-    if (authdef) {
-            /* If we've already parsed <source> and found an <auth> child,
-             * then generate an error to avoid ambiguity */
-            if (def->src->auth) {
-                virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
-                               _("an <auth> definition already found for "
-                                 "disk source"));
-                goto error;
-            }
-
-        def->src->auth = g_steal_pointer(&authdef);
-    }
-
-    if (encryption) {
-            /* If we've already parsed <source> and found an <encryption> child,
-             * then generate an error to avoid ambiguity */
-            if (def->src->encryption) {
-                virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
-                               _("an <encryption> definition already found for "
-                                 "disk source"));
-                goto error;
-            }
-
-        def->src->encryption = g_steal_pointer(&encryption);
-    }
     def->domain_name = g_steal_pointer(&domain_name);
     def->serial = g_steal_pointer(&serial);
     def->wwn = g_steal_pointer(&wwn);
     def->vendor = g_steal_pointer(&vendor);
     def->product = g_steal_pointer(&product);
-
-    if (virDomainDiskBackingStoreParse(ctxt, def->src, flags, xmlopt) < 0)
-        goto error;
 
     if (flags & VIR_DOMAIN_DEF_PARSE_STATUS &&
         virDomainDiskDefParsePrivateData(ctxt, def, xmlopt) < 0)
@@ -10309,7 +10328,6 @@ virDomainDiskDefParseXML(virDomainXMLOptionPtr xmlopt,
         goto error;
 
  cleanup:
-    virStorageEncryptionFree(encryption);
     return def;
 
  error:
@@ -10386,24 +10404,6 @@ virDomainParseScaledValue(const char *xpath,
 
     *val = bytes;
     return 1;
-}
-
-static virStorageSourcePtr
-virDomainDiskDefParseSourceXML(virDomainXMLOptionPtr xmlopt,
-                               xmlNodePtr node,
-                               xmlXPathContextPtr ctxt,
-                               unsigned int flags)
-{
-    virDomainDiskDefPtr diskdef = NULL;
-    virStorageSourcePtr ret;
-
-    if (!(diskdef = virDomainDiskDefParseXML(xmlopt, node, ctxt,
-                                             flags | VIR_DOMAIN_DEF_PARSE_DISK_SOURCE)))
-        return NULL;
-
-    ret = g_steal_pointer(&diskdef->src);
-    virDomainDiskDefFree(diskdef);
-    return ret;
 }
 
 
@@ -16521,11 +16521,23 @@ virDomainDiskDefParseSource(const char *xmlStr,
 {
     g_autoptr(xmlDoc) xml = NULL;
     g_autoptr(xmlXPathContext) ctxt = NULL;
+    g_autoptr(virStorageSource) src = NULL;
 
     if (!(xml = virXMLParseStringCtxtRoot(xmlStr, _("(disk_definition)"), "disk", &ctxt)))
         return NULL;
 
-    return virDomainDiskDefParseSourceXML(xmlopt, ctxt->node, ctxt, flags);
+    if (!(src = virDomainDiskDefParseSourceXML(xmlopt, ctxt->node, ctxt, flags)))
+        return NULL;
+
+    if (virStorageSourceIsEmpty(src)) {
+        virReportError(VIR_ERR_NO_SOURCE, NULL);
+        return NULL;
+    }
+
+    if (virDomainDiskDefParseValidateSource(src) < 0)
+        return NULL;
+
+    return g_steal_pointer(&src);
 }
 
 
