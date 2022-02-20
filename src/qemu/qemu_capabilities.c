@@ -553,6 +553,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
               "blockdev-file-dynamic-auto-read-only",
               "savevm-monitor-nodes",
               "drive-nvme",
+              "rbd-encryption",
     );
 
 
@@ -1401,6 +1402,7 @@ static struct virQEMUCapsStringFlags virQEMUCapsQMPSchemaQueries[] = {
     { "blockdev-add/arg-type/+file/$dynamic-auto-read-only", QEMU_CAPS_BLOCK_FILE_AUTO_READONLY_DYNAMIC },
     { "human-monitor-command/$savevm-monitor-nodes", QEMU_CAPS_SAVEVM_MONITOR_NODES },
     { "blockdev-add/arg-type/+nvme", QEMU_CAPS_DRIVE_NVME },
+    { "blockdev-add/arg-type/+rbd/encrypt", QEMU_CAPS_RBD_ENCRYPTION },
 };
 
 typedef struct _virQEMUCapsObjectTypeProps virQEMUCapsObjectTypeProps;

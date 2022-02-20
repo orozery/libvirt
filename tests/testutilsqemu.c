@@ -513,7 +513,7 @@ testQemuGetLatestCapsForArch(const char *arch,
             continue;
         }
 
-        if (ver > maxver) {
+        if (ver > maxver && strcmp(tmp, "4.2.1.")) {
             maxname = ent->d_name;
             maxver = ver;
         }
