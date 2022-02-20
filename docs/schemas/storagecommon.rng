@@ -27,6 +27,7 @@
         <attribute name="engine">
           <choice>
             <value>qemu</value>
+            <value>librbd</value>
           </choice>
         </attribute>
       </optional>
