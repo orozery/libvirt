@@ -8939,7 +8939,7 @@ qemuDomainDeviceDiskDefPostParseRestoreSecAlias(virDomainDiskDefPtr disk,
 }
 
 
-static int
+int
 qemuDomainDeviceDiskDefPostParse(virDomainDiskDefPtr disk,
                                  virQEMUCapsPtr qemuCaps,
                                  unsigned int parseFlags)

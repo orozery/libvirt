@@ -1085,6 +1085,10 @@ int qemuDomainDefValidateDiskLunSource(const virStorageSource *src)
 int qemuDomainDeviceDefValidateDisk(const virDomainDiskDef *disk,
                                     virQEMUCapsPtr qemuCaps);
 
+int qemuDomainDeviceDiskDefPostParse(virDomainDiskDef *disk,
+                                     virQEMUCapsPtr qemuCaps,
+                                     unsigned int parseFlags);
+
 int qemuDomainPrepareChannel(virDomainChrDefPtr chr,
                              const char *domainChannelTargetDir)
     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2);
