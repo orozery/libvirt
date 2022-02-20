@@ -21,6 +21,7 @@
           <value>default</value>
           <value>qcow</value>
           <value>luks</value>
+          <value>luks2</value>
         </choice>
       </attribute>
       <optional>

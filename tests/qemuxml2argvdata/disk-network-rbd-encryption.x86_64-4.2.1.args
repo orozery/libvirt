@@ -28,6 +28,17 @@ file=/tmp/lib/domain--1-encryptdisk/master-key.aes \
 -no-acpi \
 -boot strict=on \
 -device piix3-usb-uhci,id=usb,bus=pci.0,addr=0x1.0x2 \
+-object secret,id=libvirt-4-format-luks-secret0,\
+data=9eao5F8qtkGt+seB1HYivWIxbtwUu6MQtg1zpj/oDtUsPr1q8wBYM91uEHCn6j/1,\
+keyid=masterKey0,iv=AAECAwQFBgcICQoLDA0ODw==,format=base64 \
+-blockdev '{"driver":"rbd","pool":"pool","image":"image",\
+"server":[{"host":"mon1.example.org","port":"6321"},{"host":"mon2.example.org",\
+"port":"6322"},{"host":"mon3.example.org","port":"6322"}],\
+"node-name":"libvirt-4-storage","auto-read-only":true,"discard":"unmap"}' \
+-blockdev '{"node-name":"libvirt-4-format","read-only":false,"driver":"luks",\
+"key-secret":"libvirt-4-format-luks-secret0","file":"libvirt-4-storage"}' \
+-device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x2,drive=libvirt-4-format,\
+id=virtio-disk0,bootindex=1 \
 -object secret,id=libvirt-3-format-luks-secret0,\
 data=9eao5F8qtkGt+seB1HYivWIxbtwUu6MQtg1zpj/oDtUsPr1q8wBYM91uEHCn6j/1,\
 keyid=masterKey0,iv=AAECAwQFBgcICQoLDA0ODw==,format=base64 \
@@ -37,30 +48,31 @@ keyid=masterKey0,iv=AAECAwQFBgcICQoLDA0ODw==,format=base64 \
 "node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap"}' \
 -blockdev '{"node-name":"libvirt-3-format","read-only":false,"driver":"luks",\
 "key-secret":"libvirt-3-format-luks-secret0","file":"libvirt-3-storage"}' \
--device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x2,drive=libvirt-3-format,\
-id=virtio-disk0,bootindex=1 \
+-device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x4,drive=libvirt-3-format,\
+id=virtio-disk1 \
 -object secret,id=libvirt-2-format-luks-secret0,\
 data=9eao5F8qtkGt+seB1HYivWIxbtwUu6MQtg1zpj/oDtUsPr1q8wBYM91uEHCn6j/1,\
 keyid=masterKey0,iv=AAECAwQFBgcICQoLDA0ODw==,format=base64 \
 -blockdev '{"driver":"rbd","pool":"pool","image":"image",\
 "server":[{"host":"mon1.example.org","port":"6321"},{"host":"mon2.example.org",\
 "port":"6322"},{"host":"mon3.example.org","port":"6322"}],\
+"encrypt":{"format":"luks","key-secret":"libvirt-2-format-luks-secret0"},\
 "node-name":"libvirt-2-storage","auto-read-only":true,"discard":"unmap"}' \
--blockdev '{"node-name":"libvirt-2-format","read-only":false,"driver":"luks",\
-"key-secret":"libvirt-2-format-luks-secret0","file":"libvirt-2-storage"}' \
--device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x4,drive=libvirt-2-format,\
-id=virtio-disk1 \
+-blockdev '{"node-name":"libvirt-2-format","read-only":false,"driver":"raw",\
+"file":"libvirt-2-storage"}' \
+-device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x5,drive=libvirt-2-format,\
+id=virtio-disk2 \
 -object secret,id=libvirt-1-format-luks-secret0,\
 data=9eao5F8qtkGt+seB1HYivWIxbtwUu6MQtg1zpj/oDtUsPr1q8wBYM91uEHCn6j/1,\
 keyid=masterKey0,iv=AAECAwQFBgcICQoLDA0ODw==,format=base64 \
--blockdev '{"driver":"rbd","pool":"pool","image":"image",\
+-blockdev '{"driver":"rbd","pool":"pool","image":"image2",\
 "server":[{"host":"mon1.example.org","port":"6321"},{"host":"mon2.example.org",\
 "port":"6322"},{"host":"mon3.example.org","port":"6322"}],\
-"encrypt":{"format":"luks","key-secret":"libvirt-1-format-luks-secret0"},\
+"encrypt":{"format":"luks2","key-secret":"libvirt-1-format-luks-secret0"},\
 "node-name":"libvirt-1-storage","auto-read-only":true,"discard":"unmap"}' \
 -blockdev '{"node-name":"libvirt-1-format","read-only":false,"driver":"raw",\
 "file":"libvirt-1-storage"}' \
--device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x5,drive=libvirt-1-format,\
-id=virtio-disk2 \
+-device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x6,drive=libvirt-1-format,\
+id=virtio-disk3 \
 -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x3 \
 -msg timestamp=on
