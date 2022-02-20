@@ -1183,6 +1183,7 @@ qemuBlockStorageSourceGetFormatRawProps(virStorageSourcePtr src,
     const char *secretalias = NULL;
 
     if (src->encryption &&
+        src->encryption->engine == VIR_STORAGE_ENCRYPTION_ENGINE_QEMU &&
         src->encryption->format == VIR_STORAGE_ENCRYPTION_FORMAT_LUKS &&
         srcPriv &&
         srcPriv->encinfo) {
@@ -1218,6 +1219,7 @@ qemuBlockStorageSourceGetCryptoProps(virStorageSourcePtr src,
      * VIR_DOMAIN_SECRET_INFO_TYPE_AES works here. The correct type needs to be
      * instantiated elsewhere. */
     if (!src->encryption ||
+        src->encryption->engine != VIR_STORAGE_ENCRYPTION_ENGINE_QEMU ||
         !srcpriv ||
         !srcpriv->encinfo ||
         srcpriv->encinfo->type != VIR_DOMAIN_SECRET_INFO_TYPE_AES)
@@ -2225,6 +2227,7 @@ qemuBlockStorageSourceCreateGetFormatProps(virStorageSourcePtr src,
     switch ((virStorageFileFormat) src->format) {
     case VIR_STORAGE_FILE_RAW:
         if (!src->encryption ||
+            src->encryption->engine != VIR_STORAGE_ENCRYPTION_ENGINE_QEMU ||
             src->encryption->format != VIR_STORAGE_ENCRYPTION_FORMAT_LUKS)
             return 0;
 

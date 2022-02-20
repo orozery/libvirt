@@ -9,6 +9,13 @@
 
   <define name='domainbackup'>
     <element name='domainbackup'>
+      <optional>
+        <attribute name="engine">
+          <choice>
+            <value>qemu</value>
+          </choice>
+        </attribute>
+      </optional>
       <interleave>
         <optional>
           <element name='incremental'>

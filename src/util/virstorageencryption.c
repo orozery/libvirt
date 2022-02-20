@@ -47,6 +47,11 @@ VIR_ENUM_IMPL(virStorageEncryptionFormat,
               "default", "qcow", "luks",
 );
 
+VIR_ENUM_IMPL(virStorageEncryptionEngine,
+              VIR_STORAGE_ENCRYPTION_ENGINE_LAST,
+              "default", "qemu",
+);
+
 static void
 virStorageEncryptionInfoDefFree(virStorageEncryptionInfoDefPtr def)
 {
@@ -125,6 +130,7 @@ virStorageEncryptionCopy(const virStorageEncryption *src)
 
     ret->nsecrets = src->nsecrets;
     ret->format = src->format;
+    ret->engine = src->engine;
 
     for (i = 0; i < src->nsecrets; i++) {
         if (!(ret->secrets[i] = virStorageEncryptionSecretCopy(src->secrets[i])))
@@ -251,6 +257,7 @@ virStorageEncryptionParseNode(xmlNodePtr node,
     virStorageEncryptionPtr encdef = NULL;
     virStorageEncryptionPtr ret = NULL;
     char *format_str = NULL;
+    g_autofree char *engine_str = NULL;
     int n;
     size_t i;
 
@@ -271,6 +278,15 @@ virStorageEncryptionParseNode(xmlNodePtr node,
                        _("unknown volume encryption format type %s"),
                        format_str);
         goto cleanup;
+    }
+
+    if ((engine_str = virXMLPropString(node, "engine"))) {
+        if ((encdef->engine =
+                virStorageEncryptionEngineTypeFromString(engine_str)) <= 0) {
+            virReportError(VIR_ERR_XML_ERROR, _("unknown encryption engine %s"),
+                           engine_str);
+            goto cleanup;
+        }
     }
 
     if ((n = virXPathNodeSet("./secret", ctxt, &nodes)) < 0)
@@ -364,6 +380,7 @@ int
 virStorageEncryptionFormat(virBufferPtr buf,
                            virStorageEncryptionPtr enc)
 {
+    const char *engine;
     const char *format;
     size_t i;
 
@@ -372,7 +389,18 @@ virStorageEncryptionFormat(virBufferPtr buf,
                        "%s", _("unexpected encryption format"));
         return -1;
     }
-    virBufferAsprintf(buf, "<encryption format='%s'>\n", format);
+    if (enc->engine == VIR_STORAGE_ENCRYPTION_ENGINE_DEFAULT) {
+        virBufferAsprintf(buf, "<encryption format='%s'>\n", format);
+    } else {
+        if (!(engine = virStorageEncryptionEngineTypeToString(enc->engine))) {
+            virReportError(VIR_ERR_INTERNAL_ERROR,
+                           "%s", _("unexpected encryption engine"));
+            return -1;
+        }
+        virBufferAsprintf(buf, "<encryption format='%s' engine='%s'>\n",
+                          format, engine);
+    }
+
     virBufferAdjustIndent(buf, 2);
 
     for (i = 0; i < enc->nsecrets; i++) {

@@ -6863,6 +6863,18 @@ qemuDomainValidateStorageSource(virStorageSourcePtr src,
         return -1;
     }
 
+    if (src->encryption) {
+        switch (src->encryption->engine) {
+            case VIR_STORAGE_ENCRYPTION_ENGINE_QEMU:
+                break;
+            case VIR_STORAGE_ENCRYPTION_ENGINE_DEFAULT:
+            case VIR_STORAGE_ENCRYPTION_ENGINE_LAST:
+                virReportEnumRangeError(virStorageEncryptionEngine,
+                                        src->encryption->engine);
+                return -1;
+        }
+    }
+
     return 0;
 }
 
@@ -8944,6 +8956,8 @@ qemuDomainDeviceDiskDefPostParse(virDomainDiskDefPtr disk,
                                  virQEMUCapsPtr qemuCaps,
                                  unsigned int parseFlags)
 {
+    virStorageSource *n;
+
     /* set default disk types and drivers */
     if (!virDomainDiskGetDriver(disk) &&
         virDomainDiskSetDriver(disk, "qemu") < 0)
@@ -8958,6 +8972,12 @@ qemuDomainDeviceDiskDefPostParse(virDomainDiskDefPtr disk,
     if (disk->mirror &&
         disk->mirror->format == VIR_STORAGE_FILE_NONE)
         disk->mirror->format = VIR_STORAGE_FILE_RAW;
+
+    /* default disk encryption engine */
+    for (n = disk->src; virStorageSourceIsBacking(n); n = n->backingStore) {
+        if (n->encryption && n->encryption->engine == VIR_STORAGE_ENCRYPTION_ENGINE_DEFAULT)
+            n->encryption->engine = VIR_STORAGE_ENCRYPTION_ENGINE_QEMU;
+    }
 
     if (qemuDomainDeviceDiskDefPostParseRestoreSecAlias(disk, qemuCaps,
                                                         parseFlags) < 0)
