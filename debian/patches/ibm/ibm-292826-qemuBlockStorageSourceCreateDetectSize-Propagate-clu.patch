@@ -1,0 +1,40 @@
+From de79fad40fb6a970fab9dd566ed83ecf56877ea2 Mon Sep 17 00:00:00 2001
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 26 Aug 2020 16:45:51 +0200
+Subject: [PATCH] qemuBlockStorageSourceCreateDetectSize: Propagate cluster
+ size for 'qcow2'
+
+Propagate the cluster size from the original image as the user might
+have configured a custom cluster size for performance reasons. Propagate
+the cluster size of a qcow2 image to the new overlay or copy.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=de79fad4
+Last-Update: 2020-09-10
+
+---
+ src/qemu/qemu_block.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/qemu/qemu_block.c b/src/qemu/qemu_block.c
+index 0113c64f0f..9095986f73 100644
+--- a/src/qemu/qemu_block.c
++++ b/src/qemu/qemu_block.c
+@@ -2789,6 +2789,12 @@ qemuBlockStorageSourceCreateDetectSize(virHashTablePtr blockNamedNodeData,
+         return -1;
+     }
+ 
++    /* propagate cluster size if the images are compatible */
++    if (templ->format == VIR_STORAGE_FILE_QCOW2 &&
++        src->format == VIR_STORAGE_FILE_QCOW2 &&
++        src->clusterSize == 0)
++        src->clusterSize = entry->clusterSize;
++
+     if (src->format == VIR_STORAGE_FILE_RAW) {
+         src->physical = entry->capacity;
+     } else {
+-- 
+2.28.0
+

@@ -1,0 +1,129 @@
+From 29ecbe2f821644b2d24d4d0064333942ddedabc7 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 18 Mar 2020 11:13:22 +0100
+Subject: [PATCH] cpu_map: Don't use new noTSX models for host-model CPUs
+
+Host-model CPU definitions (and domain capabilities) will use the
+original CPU models (without noTSX in their name) and explicitly disable
+hle and rtm features. This way domains with host-model CPUs will be
+migratable even to older versions of libvirt which do not support the
+noTSX model variants.
+
+The new models will be advertised in host capabilities and they may
+be used explicitly with custom CPUs.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=17cdefe5f1
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1853200
+Last-Update: 2020-03-23
+
+---
+ src/cpu_map/x86_Cascadelake-Server-noTSX.xml           | 2 +-
+ src/cpu_map/x86_Icelake-Client-noTSX.xml               | 2 +-
+ src/cpu_map/x86_Icelake-Server-noTSX.xml               | 2 +-
+ src/cpu_map/x86_Skylake-Client-noTSX-IBRS.xml          | 2 +-
+ src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml          | 2 +-
+ tests/cputestdata/x86_64-cpuid-Core-i7-8550U-guest.xml | 4 +++-
+ tests/cputestdata/x86_64-cpuid-Core-i7-8550U-json.xml  | 4 +++-
+ 7 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/cpu_map/x86_Cascadelake-Server-noTSX.xml b/src/cpu_map/x86_Cascadelake-Server-noTSX.xml
+index 5adea664e9..459174a30d 100644
+--- a/src/cpu_map/x86_Cascadelake-Server-noTSX.xml
++++ b/src/cpu_map/x86_Cascadelake-Server-noTSX.xml
+@@ -1,6 +1,6 @@
+ <cpus>
+   <model name='Cascadelake-Server-noTSX'>
+-    <decode host='on' guest='on'/>
++    <decode host='on' guest='off'/>
+     <signature family='6' model='85'/> <!-- 050654 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_Icelake-Client-noTSX.xml b/src/cpu_map/x86_Icelake-Client-noTSX.xml
+index 540732af6f..65e648ae21 100644
+--- a/src/cpu_map/x86_Icelake-Client-noTSX.xml
++++ b/src/cpu_map/x86_Icelake-Client-noTSX.xml
+@@ -1,6 +1,6 @@
+ <cpus>
+   <model name='Icelake-Client-noTSX'>
+-    <decode host='on' guest='on'/>
++    <decode host='on' guest='off'/>
+     <signature family='6' model='126'/> <!-- 0706e0 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_Icelake-Server-noTSX.xml b/src/cpu_map/x86_Icelake-Server-noTSX.xml
+index 5a53da23c7..2fd6906406 100644
+--- a/src/cpu_map/x86_Icelake-Server-noTSX.xml
++++ b/src/cpu_map/x86_Icelake-Server-noTSX.xml
+@@ -1,6 +1,6 @@
+ <cpus>
+   <model name='Icelake-Server-noTSX'>
+-    <decode host='on' guest='on'/>
++    <decode host='on' guest='off'/>
+     <signature family='6' model='134'/> <!-- 080660 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_Skylake-Client-noTSX-IBRS.xml b/src/cpu_map/x86_Skylake-Client-noTSX-IBRS.xml
+index 0c2f1e6ac4..ffba34502a 100644
+--- a/src/cpu_map/x86_Skylake-Client-noTSX-IBRS.xml
++++ b/src/cpu_map/x86_Skylake-Client-noTSX-IBRS.xml
+@@ -1,6 +1,6 @@
+ <cpus>
+   <model name='Skylake-Client-noTSX-IBRS'>
+-    <decode host='on' guest='on'/>
++    <decode host='on' guest='off'/>
+     <signature family='6' model='94'/> <!-- 0506e0 -->
+     <signature family='6' model='78'/> <!-- 0406e0 -->
+     <!-- These are Kaby Lake and Coffee Lake successors to Skylake,
+diff --git a/src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml b/src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml
+index 91a206f575..c2b7de40e8 100644
+--- a/src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml
++++ b/src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml
+@@ -1,6 +1,6 @@
+ <cpus>
+   <model name='Skylake-Server-noTSX-IBRS'>
+-    <decode host='on' guest='on'/>
++    <decode host='on' guest='off'/>
+     <signature family='6' model='85'/> <!-- 050654 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/tests/cputestdata/x86_64-cpuid-Core-i7-8550U-guest.xml b/tests/cputestdata/x86_64-cpuid-Core-i7-8550U-guest.xml
+index e03c4a06ba..92404e4d03 100644
+--- a/tests/cputestdata/x86_64-cpuid-Core-i7-8550U-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Core-i7-8550U-guest.xml
+@@ -1,5 +1,5 @@
+ <cpu mode='custom' match='exact'>
+-  <model fallback='forbid'>Skylake-Client-noTSX-IBRS</model>
++  <model fallback='forbid'>Skylake-Client-IBRS</model>
+   <vendor>Intel</vendor>
+   <feature policy='require' name='ds'/>
+   <feature policy='require' name='acpi'/>
+@@ -26,4 +26,6 @@
+   <feature policy='require' name='pdpe1gb'/>
+   <feature policy='require' name='invtsc'/>
+   <feature policy='require' name='skip-l1dfl-vmentry'/>
++  <feature policy='disable' name='hle'/>
++  <feature policy='disable' name='rtm'/>
+ </cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-Core-i7-8550U-json.xml b/tests/cputestdata/x86_64-cpuid-Core-i7-8550U-json.xml
+index 3d8e6775bf..645c0934c2 100644
+--- a/tests/cputestdata/x86_64-cpuid-Core-i7-8550U-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-Core-i7-8550U-json.xml
+@@ -1,5 +1,5 @@
+ <cpu mode='custom' match='exact'>
+-  <model fallback='forbid'>Skylake-Client-noTSX-IBRS</model>
++  <model fallback='forbid'>Skylake-Client-IBRS</model>
+   <vendor>Intel</vendor>
+   <feature policy='require' name='ss'/>
+   <feature policy='require' name='vmx'/>
+@@ -14,4 +14,6 @@
+   <feature policy='require' name='xsaves'/>
+   <feature policy='require' name='pdpe1gb'/>
+   <feature policy='require' name='skip-l1dfl-vmentry'/>
++  <feature policy='disable' name='hle'/>
++  <feature policy='disable' name='rtm'/>
+ </cpu>
+-- 
+2.25.1
+

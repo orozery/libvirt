@@ -19,16 +19,21 @@ trap cleanup EXIT
 
 if [ ! -f /vmlinuz ] || [ ! -f /initrd.img ]; then
    echo "Kernel or initrd not found...skipping".
-   exit 77
+   exit 0
 fi
 
 if [ $(uname -m) != "x86_64" ]; then
    echo "Not on x86_64...skipping"
-   exit 77
+   exit 0
 fi
+
+# to be able to load our simple guest from /vmlinuz later
+sudo chown $USER /initrd.img
+sudo chown $USER /vmlinuz
 
 echo echo "Running as $USER"
 set -x
+
 virt-host-validate qemu || true
 virsh capabilities
 virsh capabilities | grep -qs "arch name='x86_64'"

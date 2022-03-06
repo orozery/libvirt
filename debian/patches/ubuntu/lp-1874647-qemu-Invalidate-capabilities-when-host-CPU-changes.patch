@@ -1,0 +1,168 @@
+From 004804a7d77d0b63ce2f5fcb8499c94b77a5ef5c Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Fri, 15 May 2020 22:00:29 +0200
+Subject: [PATCH] qemu: Invalidate capabilities when host CPU changes
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The host CPU related info stored in the capabilities cache is no longer
+valid after the host CPU changes. This is not a frequent situation in
+real world, but it can easily happen in nested scenarios when a disk
+image is started with various CPUs.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1778819
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=004804a7d7
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1874647
+Last-Update: 2020-08-31
+
+---
+ src/qemu/qemu_capabilities.c | 24 ++++++++++++++++++++++++
+ src/qemu/qemu_capspriv.h     |  1 +
+ tests/qemucapsprobe.c        |  2 +-
+ 3 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index d9b339cbfb..f12769635a 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -669,6 +669,7 @@ struct _virQEMUCaps {
+     unsigned int kvmVersion;
+     unsigned int libvirtVersion;
+     unsigned int microcodeVersion;
++    char *hostCPUSignature;
+     char *package;
+     char *kernelVersion;
+ 
+@@ -1908,6 +1909,7 @@ virQEMUCapsPtr virQEMUCapsNewCopy(virQEMUCapsPtr qemuCaps)
+     ret->version = qemuCaps->version;
+     ret->kvmVersion = qemuCaps->kvmVersion;
+     ret->microcodeVersion = qemuCaps->microcodeVersion;
++    ret->hostCPUSignature = g_strdup(qemuCaps->hostCPUSignature);
+ 
+     ret->package = g_strdup(qemuCaps->package);
+     ret->kernelVersion = g_strdup(qemuCaps->kernelVersion);
+@@ -1964,6 +1966,7 @@ void virQEMUCapsDispose(void *obj)
+     VIR_FREE(qemuCaps->package);
+     VIR_FREE(qemuCaps->kernelVersion);
+     VIR_FREE(qemuCaps->binary);
++    VIR_FREE(qemuCaps->hostCPUSignature);
+ 
+     VIR_FREE(qemuCaps->gicCapabilities);
+ 
+@@ -4093,6 +4096,7 @@ struct _virQEMUCapsCachePriv {
+     virArch hostArch;
+     unsigned int microcodeVersion;
+     char *kernelVersion;
++    char *hostCPUSignature;
+ 
+     /* cache whether /dev/kvm is usable as runUid:runGuid */
+     virTristateBool kvmUsable;
+@@ -4109,6 +4113,7 @@ virQEMUCapsCachePrivFree(void *privData)
+ 
+     VIR_FREE(priv->libDir);
+     VIR_FREE(priv->kernelVersion);
++    VIR_FREE(priv->hostCPUSignature);
+     VIR_FREE(priv);
+ }
+ 
+@@ -4286,6 +4291,8 @@ virQEMUCapsLoadCache(virArch hostArch,
+         goto cleanup;
+     }
+ 
++    qemuCaps->hostCPUSignature = virXPathString("string(./hostCPUSignature)", ctxt);
++
+     if (virXPathBoolean("boolean(./package)", ctxt) > 0) {
+         qemuCaps->package = virXPathString("string(./package)", ctxt);
+         if (!qemuCaps->package)
+@@ -4587,6 +4594,8 @@ virQEMUCapsFormatCache(virQEMUCapsPtr qemuCaps)
+ 
+     virBufferAsprintf(&buf, "<microcodeVersion>%u</microcodeVersion>\n",
+                       qemuCaps->microcodeVersion);
++    virBufferEscapeString(&buf, "<hostCPUSignature>%s</hostCPUSignature>\n",
++                          qemuCaps->hostCPUSignature);
+ 
+     if (qemuCaps->package)
+         virBufferAsprintf(&buf, "<package>%s</package>\n",
+@@ -4814,6 +4823,15 @@ virQEMUCapsIsValid(void *data,
+     }
+ 
+     if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_KVM)) {
++        if (STRNEQ_NULLABLE(priv->hostCPUSignature, qemuCaps->hostCPUSignature)) {
++            VIR_DEBUG("Outdated capabilities for '%s': host CPU changed "
++                      "('%s' vs '%s')",
++                      qemuCaps->binary,
++                      priv->hostCPUSignature,
++                      qemuCaps->hostCPUSignature);
++            return false;
++        }
++
+         if (priv->microcodeVersion != qemuCaps->microcodeVersion) {
+             VIR_DEBUG("Outdated capabilities for '%s': microcode version "
+                       "changed (%u vs %u)",
+@@ -5286,6 +5304,7 @@ virQEMUCapsNewForBinaryInternal(virArch hostArch,
+                                 const char *libDir,
+                                 uid_t runUid,
+                                 gid_t runGid,
++                                const char *hostCPUSignature,
+                                 unsigned int microcodeVersion,
+                                 const char *kernelVersion)
+ {
+@@ -5324,6 +5343,7 @@ virQEMUCapsNewForBinaryInternal(virArch hostArch,
+     virQEMUCapsInitHostCPUModel(qemuCaps, hostArch, VIR_DOMAIN_VIRT_QEMU);
+ 
+     if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_KVM)) {
++        qemuCaps->hostCPUSignature = g_strdup(hostCPUSignature);
+         qemuCaps->microcodeVersion = microcodeVersion;
+ 
+         qemuCaps->kernelVersion = g_strdup(kernelVersion);
+@@ -5349,6 +5369,7 @@ virQEMUCapsNewData(const char *binary,
+                                            priv->libDir,
+                                            priv->runUid,
+                                            priv->runGid,
++                                           priv->hostCPUSignature,
+                                            virHostCPUGetMicrocodeVersion(),
+                                            priv->kernelVersion);
+ }
+@@ -5448,6 +5469,9 @@ virQEMUCapsCacheNew(const char *libDir,
+ 
+     priv->hostArch = virArchFromHost();
+ 
++    if (virHostCPUGetSignature(&priv->hostCPUSignature) < 0)
++        goto error;
++
+     priv->runUid = runUid;
+     priv->runGid = runGid;
+     priv->kvmUsable = VIR_TRISTATE_BOOL_ABSENT;
+diff --git a/src/qemu/qemu_capspriv.h b/src/qemu/qemu_capspriv.h
+index 4c053af195..5d2f448e41 100644
+--- a/src/qemu/qemu_capspriv.h
++++ b/src/qemu/qemu_capspriv.h
+@@ -33,6 +33,7 @@ virQEMUCapsNewForBinaryInternal(virArch hostArch,
+                                 const char *libDir,
+                                 uid_t runUid,
+                                 gid_t runGid,
++                                const char *hostCPUSignature,
+                                 unsigned int microcodeVersion,
+                                 const char *kernelVersion);
+ 
+diff --git a/tests/qemucapsprobe.c b/tests/qemucapsprobe.c
+index ea88fd2e8a..26ea9ff5ed 100644
+--- a/tests/qemucapsprobe.c
++++ b/tests/qemucapsprobe.c
+@@ -77,7 +77,7 @@ main(int argc, char **argv)
+         return EXIT_FAILURE;
+ 
+     if (!(caps = virQEMUCapsNewForBinaryInternal(VIR_ARCH_NONE, argv[1], "/tmp",
+-                                                 -1, -1, 0, NULL)))
++                                                 -1, -1, NULL, 0, NULL)))
+         return EXIT_FAILURE;
+ 
+     virObjectUnref(caps);
+-- 
+2.28.0
+

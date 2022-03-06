@@ -1,0 +1,83 @@
+From ff6897c84504a3e663759d710968ad1f72bc9208 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 11:32:57 +0100
+Subject: [PATCH] cpu_x86: Use g_auto* in virCPUx86ExpandFeatures
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=ff6897c845
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 22 ++++++++--------------
+ 1 file changed, 8 insertions(+), 14 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index cf573b6711..c3b8adaea0 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -3055,30 +3055,29 @@ static int
+ virCPUx86ExpandFeatures(virCPUDefPtr cpu)
+ {
+     virCPUx86MapPtr map;
+-    virCPUDefPtr expanded = NULL;
+-    virCPUx86ModelPtr model = NULL;
++    g_autoptr(virCPUDef) expanded = NULL;
++    g_autoptr(virCPUx86Model) model = NULL;
+     bool host = cpu->type == VIR_CPU_TYPE_HOST;
+     size_t i;
+-    int ret = -1;
+ 
+     if (!(map = virCPUx86GetMap()))
+-        goto cleanup;
++        return -1;
+ 
+     if (!(expanded = virCPUDefCopy(cpu)))
+-        goto cleanup;
++        return -1;
+ 
+     virCPUDefFreeFeatures(expanded);
+ 
+     if (!(model = x86ModelFind(map, cpu->model))) {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+                        _("unknown CPU model %s"), cpu->model);
+-        goto cleanup;
++        return -1;
+     }
+ 
+     if (!(model = x86ModelCopy(model)) ||
+         x86DataToCPUFeatures(expanded, host ? -1 : VIR_CPU_FEATURE_REQUIRE,
+                              &model->data, map) < 0)
+-        goto cleanup;
++        return -1;
+ 
+     for (i = 0; i < cpu->nfeatures; i++) {
+         virCPUFeatureDefPtr f = cpu->features + i;
+@@ -3089,17 +3088,12 @@ virCPUx86ExpandFeatures(virCPUDefPtr cpu)
+             continue;
+ 
+         if (virCPUDefUpdateFeature(expanded, f->name, f->policy) < 0)
+-            goto cleanup;
++            return -1;
+     }
+ 
+     virCPUDefFreeModel(cpu);
+ 
+-    ret = virCPUDefCopyModel(cpu, expanded, false);
+-
+- cleanup:
+-    virCPUDefFree(expanded);
+-    x86ModelFree(model);
+-    return ret;
++    return virCPUDefCopyModel(cpu, expanded, false);
+ }
+ 
+ 
+-- 
+2.31.1
+

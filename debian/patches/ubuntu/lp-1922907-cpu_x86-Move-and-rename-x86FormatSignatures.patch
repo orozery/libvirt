@@ -1,0 +1,85 @@
+From 7e0d351fa69c468906533b2ac9b24212df13a370 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 26 Mar 2020 15:14:41 +0100
+Subject: [PATCH] cpu_x86: Move and rename x86FormatSignatures
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Later in this series the function will work on a newly introduced
+virCPUx86Signatures structure. Let's move it to the place where all
+related functions will be added and rename the function as
+virCPUx86SignaturesFormat for easier review of the virCPUx86Signatures
+patch.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Backport-Note: some noise due to missing 0a125c71
+Origin: backport, https://libvirt.org/git/?p=libvirt.git;a=commit;h=7e0d351fa6
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)
+
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -1125,6 +1125,23 @@ virCPUx86SignaturesMatch(virCPUx86ModelP
+ }
+ 
+ 
++static char *
++virCPUx86SignaturesFormat(virCPUx86ModelPtr model)
++{
++    virBuffer buf = VIR_BUFFER_INITIALIZER;
++    size_t i;
++
++    for (i = 0; i < model->nsignatures; i++) {
++        virBufferAsprintf(&buf, "%06lx,",
++                          (unsigned long)model->signatures[i]);
++    }
++
++    virBufferTrim(&buf, ",", -1);
++
++    return virBufferContentAndReset(&buf);
++}
++
++
+ static void
+ x86ModelFree(virCPUx86ModelPtr model)
+ {
+@@ -1890,23 +1907,6 @@ virCPUx86Compare(virCPUDefPtr host,
+ }
+ 
+ 
+-static char *
+-x86FormatSignatures(virCPUx86ModelPtr model)
+-{
+-    virBuffer buf = VIR_BUFFER_INITIALIZER;
+-    size_t i;
+-
+-    for (i = 0; i < model->nsignatures; i++) {
+-        virBufferAsprintf(&buf, "%06lx,",
+-                          (unsigned long)model->signatures[i]);
+-    }
+-
+-    virBufferTrim(&buf, ",", -1);
+-
+-    return virBufferContentAndReset(&buf);
+-}
+-
+-
+ /*
+  * Checks whether a candidate model is a better fit for the CPU data than the
+  * current model.
+@@ -2134,7 +2134,7 @@ x86Decode(virCPUDefPtr cpu,
+     if (vendor)
+         cpu->vendor = g_strdup(vendor->name);
+ 
+-    sigs = x86FormatSignatures(model);
++    sigs = virCPUx86SignaturesFormat(model);
+ 
+     VIR_DEBUG("Using CPU model %s (signatures %s) for CPU with signature %06lx",
+               model->name, NULLSTR(sigs), (unsigned long)signature);

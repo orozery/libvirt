@@ -1,0 +1,98 @@
+From 782be9f0af2e02e725fca45b7674e8b2f008dc6c Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 26 Mar 2020 15:12:26 +0100
+Subject: [PATCH] cpu_x86: Move and rename x86ModelHasSignature
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Later in this series the function will work on a newly introduced
+virCPUx86Signatures structure. Let's move it to the place were all
+related functions will be added and rename the function as
+virCPUx86SignaturesMatch for easier review of the virCPUx86Signatures
+patch.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=782be9f0af
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 38 +++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 50ee9408e6..407a5d54de 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -1110,6 +1110,21 @@ virCPUx86SignaturesCopy(virCPUx86ModelPtr dst,
+ }
+ 
+ 
++static bool
++virCPUx86SignaturesMatch(virCPUx86ModelPtr model,
++                         uint32_t signature)
++{
++    size_t i;
++
++    for (i = 0; i < model->nsignatures; i++) {
++        if (model->signatures[i] == signature)
++            return true;
++    }
++
++    return false;
++}
++
++
+ static void
+ x86ModelFree(virCPUx86ModelPtr model)
+ {
+@@ -1875,21 +1890,6 @@ virCPUx86Compare(virCPUDefPtr host,
+ }
+ 
+ 
+-static bool
+-x86ModelHasSignature(virCPUx86ModelPtr model,
+-                     uint32_t signature)
+-{
+-    size_t i;
+-
+-    for (i = 0; i < model->nsignatures; i++) {
+-        if (model->signatures[i] == signature)
+-            return true;
+-    }
+-
+-    return false;
+-}
+-
+-
+ static char *
+ x86FormatSignatures(virCPUx86ModelPtr model)
+ {
+@@ -1961,8 +1961,8 @@ x86DecodeUseCandidate(virCPUx86ModelPtr current,
+      * consider candidates with matching family/model.
+      */
+     if (signature &&
+-        x86ModelHasSignature(current, signature) &&
+-        !x86ModelHasSignature(candidate, signature)) {
++        virCPUx86SignaturesMatch(current, signature) &&
++        !virCPUx86SignaturesMatch(candidate, signature)) {
+         VIR_DEBUG("%s differs in signature from matching %s",
+                   cpuCandidate->model, cpuCurrent->model);
+         return 0;
+@@ -1978,8 +1978,8 @@ x86DecodeUseCandidate(virCPUx86ModelPtr current,
+      * result in longer list of features.
+      */
+     if (signature &&
+-        x86ModelHasSignature(candidate, signature) &&
+-        !x86ModelHasSignature(current, signature)) {
++        virCPUx86SignaturesMatch(candidate, signature) &&
++        !virCPUx86SignaturesMatch(current, signature)) {
+         VIR_DEBUG("%s provides matching signature", cpuCandidate->model);
+         return 1;
+     }
+-- 
+2.31.1
+

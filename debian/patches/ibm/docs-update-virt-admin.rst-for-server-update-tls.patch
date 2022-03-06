@@ -1,0 +1,51 @@
+From c43969e1646b39bf4dc07b585de7e2720b83519f Mon Sep 17 00:00:00 2001
+From: Zhang Bo <oscar.zhangbo@huawei.com>
+Date: Sat, 7 Mar 2020 19:31:04 +0800
+Subject: [PATCH] docs: update virt-admin.rst for server-update-tls
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Update the manpage for the 'server-update-tls' command
+
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+Signed-off-by: Zhang Bo <oscar.zhangbo@huawei.com>
+Signed-off-by: Wu Qingliang <wuqingliang4@huawei.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=c43969e164
+Last-Update: 2022-02-17
+
+---
+ docs/manpages/virt-admin.rst | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/docs/manpages/virt-admin.rst b/docs/manpages/virt-admin.rst
+index 51c3d3917e..3e0d127790 100644
+--- a/docs/manpages/virt-admin.rst
++++ b/docs/manpages/virt-admin.rst
+@@ -442,6 +442,22 @@ Set new client-related limits on *server*.
+   *--max-clients*.
+ 
+ 
++server-update-tls
++-----------------
++
++**Syntax:**
++
++.. code-block::
++
++   server-update-tls server
++
++Update tls context on *server*.
++
++- *server*
++
++  Available servers on a daemon. Currently only supports 'libvirtd'.
++
++
+ CLIENT COMMANDS
+ ===============
+ 
+-- 
+2.35.0
+

@@ -1,0 +1,120 @@
+Description: To support kernels or dkms builds of mlx5_core driver with
+ https://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git/commit/?id=123f0f53dd64b67e34142485fe866a8a581f12f1
+Origin: backport, https://github.com/libvirt/libvirt/commit/97ebb982453bc23759c5f180799d6f2207b81c80
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1892132
+Last-Update: 2021-08-13
+
+diff --git a/src/util/virnetdev.c b/src/util/virnetdev.c
+index e2aad07c24..52c9343d63 100644
+--- a/src/util/virnetdev.c
++++ b/src/util/virnetdev.c
+@@ -1143,6 +1143,29 @@ virNetDevGetPCIDevice(const char *devName)
+ }
+ 
+ 
++/* A wrapper to get content of file from ifname SYSFS_NET_DIR
++ */
++static int
++virNetDevGetSysfsFileValue(const char *ifname,
++                           const char *fileName,
++                           char **sysfsFileData)
++{
++    g_autofree char *sysfsFile = NULL;
++
++    *sysfsFileData = NULL;
++
++    if (virNetDevSysfsFile(&sysfsFile, ifname, fileName) < 0)
++        return -1;
++
++    /* a failure to read just means the driver doesn't support
++     * <fileName>, so set success now and ignore the return from
++     * virFileReadAllQuiet().
++     */
++
++    ignore_value(virFileReadAllQuiet(sysfsFile, 1024, sysfsFileData));
++    return 0;
++}
++
+ /**
+  * virNetDevGetPhysPortID:
+  *
+@@ -1161,25 +1184,29 @@ int
+ virNetDevGetPhysPortID(const char *ifname,
+                        char **physPortID)
+ {
+-    int ret = -1;
+-    char *physPortIDFile = NULL;
+-
+-    *physPortID = NULL;
+-
+-    if (virNetDevSysfsFile(&physPortIDFile, ifname, "phys_port_id") < 0)
+-        goto cleanup;
+-
+-    /* a failure to read just means the driver doesn't support
+-     * phys_port_id, so set success now and ignore the return from
+-     * virFileReadAllQuiet().
+-     */
+-    ret = 0;
++    return virNetDevGetSysfsFileValue(ifname, "phys_port_id", physPortID);
++}
+ 
+-    ignore_value(virFileReadAllQuiet(physPortIDFile, 1024, physPortID));
+ 
+- cleanup:
+-    VIR_FREE(physPortIDFile);
+-    return ret;
++/**
++ * virNetDevGetPhysPortName:
++ *
++ * @ifname: name of a netdev
++ *
++ * @physPortName: pointer to char* that will receive @ifname's
++ *                phys_port_name from sysfs (null terminated
++ *                string). Could be NULL if @ifname's net driver doesn't
++ *                support phys_port_name (most netdev drivers
++ *                don't). Caller is responsible for freeing the string
++ *                when finished.
++ *
++ * Returns 0 on success or -1 on failure.
++ */
++int
++virNetDevGetPhysPortName(const char *ifname,
++                         char **physPortName)
++{
++    return virNetDevGetSysfsFileValue(ifname, "phys_port_name", physPortName);
+ }
+ 
+ 
+@@ -1461,6 +1488,17 @@ virNetDevGetPhysPortID(const char *ifname G_GNUC_UNUSED,
+     return 0;
+ }
+ 
++int
++virNetDevGetPhysPortName(const char *ifname G_GNUC_UNUSED,
++                       char **physPortName)
++{
++    /* this actually should never be called, and is just here to
++     * satisfy the linker.
++     */
++    *physPortName = NULL;
++    return 0;
++}
++
+ int
+ virNetDevGetVirtualFunctions(const char *pfname G_GNUC_UNUSED,
+                              char ***vfname G_GNUC_UNUSED,
+diff --git a/src/util/virnetdev.h b/src/util/virnetdev.h
+index 24b41498ed..26fe76cc2c 100644
+--- a/src/util/virnetdev.h
++++ b/src/util/virnetdev.h
+@@ -227,6 +227,10 @@ int virNetDevGetPhysPortID(const char *ifname,
+                            char **physPortID)
+     ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2)
+     G_GNUC_WARN_UNUSED_RESULT;
++int virNetDevGetPhysPortName(const char *ifname,
++                           char **physPortName)
++    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2)
++    G_GNUC_WARN_UNUSED_RESULT;
+ 
+ int virNetDevGetVirtualFunctions(const char *pfname,
+                                  char ***vfname,

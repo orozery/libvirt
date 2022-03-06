@@ -1,3 +1,4 @@
+usr/share/apport/package-hooks/source_libvirt.py
 usr/sbin/libvirtd
 usr/sbin/virt-sanlock-cleanup
 usr/sbin/virtlockd
@@ -25,7 +26,6 @@ usr/share/bash-completion/*
 usr/share/man/man8/*
 usr/lib/*/libvirt/storage-backend/libvirt_storage_backend_disk.so
 usr/lib/*/libvirt/storage-backend/libvirt_storage_backend_fs.so
-usr/lib/*/libvirt/storage-backend/libvirt_storage_backend_iscsi.so
 usr/lib/*/libvirt/storage-backend/libvirt_storage_backend_logical.so
 usr/lib/*/libvirt/storage-backend/libvirt_storage_backend_mpath.so
 usr/lib/*/libvirt/storage-backend/libvirt_storage_backend_scsi.so

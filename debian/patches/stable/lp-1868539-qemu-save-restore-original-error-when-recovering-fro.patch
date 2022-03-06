@@ -1,0 +1,60 @@
+From 3f8b57a61fdc2f685a46f52fc794225615b0e38a Mon Sep 17 00:00:00 2001
+From: Laine Stump <laine@redhat.com>
+Date: Thu, 13 Feb 2020 11:57:43 -0500
+Subject: [PATCH] qemu: save/restore original error when recovering from failed
+ bridge attach
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Not only was the original error code destroyed in the case of
+encountering an error during recovery from a failed attach to the
+bridge (and then *that* error was destroyed by logging a *second*
+error about the failure to recover - virNetDevBridgeAddPort() already
+logs an error, so the one about failing to recover was redundant), but
+if the recovery was successful, the function would then return success
+to the caller even though it had failed.
+
+Fixes: 2711ac87160d7ac7d550c57f4339e6c6749942fa
+(overwritten errors were introduced along with this functionality)
+Fixes: 6bde0a1a37424c84492658223ff845b1ebb0e25c
+(the wrong return value was introduced by a refactor)
+
+Signed-off-by: Laine Stump <laine@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=3f8b57a61f
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ src/qemu/qemu_hotplug.c | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/qemu/qemu_hotplug.c b/src/qemu/qemu_hotplug.c
+index c840889968..6395826c69 100644
+--- a/src/qemu/qemu_hotplug.c
++++ b/src/qemu/qemu_hotplug.c
+@@ -3352,14 +3352,13 @@ qemuDomainChangeNetBridge(virDomainObjPtr vm,
+     ret = virNetDevBridgeAddPort(newbridge, olddev->ifname);
+     virDomainAuditNet(vm, NULL, newdev, "attach", ret == 0);
+     if (ret < 0) {
++        virErrorPtr err;
++
++        virErrorPreserveLast(&err);
+         ret = virNetDevBridgeAddPort(oldbridge, olddev->ifname);
+         virDomainAuditNet(vm, NULL, olddev, "attach", ret == 0);
+-        if (ret < 0) {
+-            virReportError(VIR_ERR_OPERATION_FAILED,
+-                           _("unable to recover former state by adding port "
+-                             "to bridge %s"), oldbridge);
+-        }
+-        return ret;
++        virErrorRestore(&err);
++        return -1;
+     }
+     /* caller will replace entire olddev with newdev in domain nets list */
+     return 0;
+-- 
+2.25.1
+

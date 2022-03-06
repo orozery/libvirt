@@ -1,0 +1,51 @@
+From 3b5f1ca58e8f12bc7b768206cb9c7c2ef237e3ff Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 11:31:29 +0100
+Subject: [PATCH] cpu_x86: Use g_auto* in virCPUx86CheckFeature
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=3b5f1ca58e
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index afdde24754..3bb212a909 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -2278,21 +2278,16 @@ static int
+ virCPUx86CheckFeature(const virCPUDef *cpu,
+                       const char *name)
+ {
+-    int ret = -1;
+     virCPUx86MapPtr map;
+-    virCPUx86ModelPtr model = NULL;
++    g_autoptr(virCPUx86Model) model = NULL;
+ 
+     if (!(map = virCPUx86GetMap()))
+         return -1;
+ 
+     if (!(model = x86ModelFromCPU(cpu, map, -1)))
+-        goto cleanup;
+-
+-    ret = x86FeatureInData(name, &model->data, map);
++        return -1;
+ 
+- cleanup:
+-    x86ModelFree(model);
+-    return ret;
++    return x86FeatureInData(name, &model->data, map);
+ }
+ 
+ 
+-- 
+2.31.1
+

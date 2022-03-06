@@ -1,0 +1,73 @@
+From 657365e74f489b70bfbf2eb014db63046c5e3888 Mon Sep 17 00:00:00 2001
+From: Paulo de Rezende Pinatti <ppinatti@linux.ibm.com>
+Date: Mon, 15 Jun 2020 10:28:08 +0200
+Subject: [PATCH] qemu: Check if AMD secure guest support is enabled
+
+Implement secure guest check for AMD SEV (Secure Encrypted
+Virtualization) in order to invalidate the qemu capabilities
+cache in case the availability of the feature changed.
+
+For AMD SEV the verification consists of:
+ - checking if /sys/module/kvm_amd/parameters/sev contains the
+   value '1': meaning SEV is enabled in the host kernel;
+ - checking if /dev/sev exists
+
+Signed-off-by: Paulo de Rezende Pinatti <ppinatti@linux.ibm.com>
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Bjoern Walk <bwalk@linux.ibm.com>
+Reviewed-by: Erik Skultety <eskultet@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=657365e74f
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1874647
+Last-Update: 2020-08-31
+
+---
+ src/qemu/qemu_capabilities.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index d9c2b7c57c..a77819a429 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -4715,6 +4715,27 @@ virQEMUCapsKVMSupportsSecureGuestS390(void)
+ }
+ 
+ 
++/*
++ * Check whether AMD Secure Encrypted Virtualization (x86) is enabled
++ */
++static bool
++virQEMUCapsKVMSupportsSecureGuestAMD(void)
++{
++    g_autofree char *modValue = NULL;
++
++    if (virFileReadValueString(&modValue, "/sys/module/kvm_amd/parameters/sev") < 0)
++        return false;
++
++    if (modValue[0] != '1')
++        return false;
++
++    if (virFileExists(QEMU_DEV_SEV))
++        return true;
++
++    return false;
++}
++
++
+ /*
+  * Check whether the secure guest functionality is enabled.
+  * See the specific architecture function for details on the verifications made.
+@@ -4726,6 +4747,10 @@ virQEMUCapsKVMSupportsSecureGuest(void)
+ 
+     if (ARCH_IS_S390(arch))
+         return virQEMUCapsKVMSupportsSecureGuestS390();
++
++    if (ARCH_IS_X86(arch))
++        return virQEMUCapsKVMSupportsSecureGuestAMD();
++
+     return false;
+ }
+ 
+-- 
+2.28.0
+

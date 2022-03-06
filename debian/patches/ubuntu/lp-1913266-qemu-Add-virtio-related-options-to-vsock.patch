@@ -1,0 +1,322 @@
+From ac68af6fc6e1cae7f482677aabb97c544e7190e4 Mon Sep 17 00:00:00 2001
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Mon, 8 Feb 2021 20:56:59 +0000
+Subject: [PATCH] qemu: Add virtio related options to vsock
+
+Add virtio related options iommu, ats and packed as driver element attributes
+to vsock devices. Ex:
+
+ <vsock model='virtio'>
+   <cid auto='no' address='3'/>
+   <driver iommu='on'/>
+ </vsock>
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+---
+ docs/formatdomain.html.in                     |  5 ++-
+ docs/schemas/domaincommon.rng                 |  5 +++
+ src/conf/domain_conf.c                        | 26 +++++++++++++
+ src/conf/domain_conf.h                        |  1 +
+ src/qemu/qemu_command.c                       |  4 ++
+ .../vhost-vsock-ccw-iommu.s390x-latest.args   | 37 +++++++++++++++++++
+ .../vhost-vsock-ccw-iommu.xml                 | 34 +++++++++++++++++
+ tests/qemuxml2argvtest.c                      |  1 +
+ .../vhost-vsock-ccw-iommu.s390x-latest.xml    | 34 +++++++++++++++++
+ tests/qemuxml2xmltest.c                       |  1 +
+ 10 files changed, 147 insertions(+), 1 deletion(-)
+ create mode 100644 tests/qemuxml2argvdata/vhost-vsock-ccw-iommu.s390x-latest.args
+ create mode 100644 tests/qemuxml2argvdata/vhost-vsock-ccw-iommu.xml
+ create mode 100644 tests/qemuxml2xmloutdata/vhost-vsock-ccw-iommu.s390x-latest.xml
+
+Origin: backport attached to bug, original at https://gitlab.com/libvirt/libvirt/-/commit/bd112c9e0f
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1913266
+Applied-Upstream: v7.1.0
+
+diff --git a/docs/formatdomain.html.in b/docs/formatdomain.html.in
+index 6e86d057a..c1371b38b 100644
+--- a/docs/formatdomain.html.in
++++ b/docs/formatdomain.html.in
+@@ -8929,7 +8929,10 @@ qemu-kvm -net nic,model=? /dev/null
+     element specifies the CID assigned to the guest. If the attribute
+     <code>auto</code> is set to <code>yes</code>, libvirt
+     will assign a free CID automatically on domain startup.
+-    <span class="since">Since 4.4.0</span></p>
++    <span class="since">Since 4.4.0</span>
++    The optional <code>driver</code> element allows to specify virtio options, see
++    <a href="#elementsVirtio">Virtio-specific options</a> for more details.
++    <span class="since">Since 7.1.0</span></p>
+ 
+ <pre>
+ ...
+diff --git a/docs/schemas/domaincommon.rng b/docs/schemas/domaincommon.rng
+index 76d94b156..1220bfad9 100644
+--- a/docs/schemas/domaincommon.rng
++++ b/docs/schemas/domaincommon.rng
+@@ -4459,6 +4459,11 @@
+         <optional>
+           <ref name="alias"/>
+         </optional>
++        <optional>
++          <element name="driver">
++            <ref name="virtioOptions"/>
++          </element>
++        </optional>
+       </interleave>
+     </element>
+   </define>
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index e7a6b6ad1..bf3842dda 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -2373,6 +2373,7 @@ virDomainVsockDefFree(virDomainVsockDefPtr vsock)
+ 
+     virObjectUnref(vsock->privateData);
+     virDomainDeviceInfoClear(&vsock->info);
++    VIR_FREE(vsock->virtio);
+     VIR_FREE(vsock);
+ }
+ 
+@@ -5203,6 +5204,15 @@ virDomainNetDefPostParse(virDomainNetDefPtr net)
+ }
+ 
+ 
++static bool
++virDomainVsockIsVirtioModel(const virDomainVsockDef *vsock)
++{
++    return (vsock->model == VIR_DOMAIN_VSOCK_MODEL_VIRTIO ||
++            vsock->model == VIR_DOMAIN_VSOCK_MODEL_VIRTIO_TRANSITIONAL ||
++            vsock->model == VIR_DOMAIN_VSOCK_MODEL_VIRTIO_NON_TRANSITIONAL);
++}
++
++
+ static int
+ virDomainVsockDefPostParse(virDomainVsockDefPtr vsock)
+ {
+@@ -5213,6 +5223,10 @@ virDomainVsockDefPostParse(virDomainVsockDefPtr vsock)
+             vsock->auto_cid = VIR_TRISTATE_BOOL_YES;
+     }
+ 
++    if (!virDomainVsockIsVirtioModel(vsock) &&
++        virDomainCheckVirtioOptions(vsock->virtio) < 0)
++        return -1;
++
+     return 0;
+ }
+ 
+@@ -16448,6 +16462,10 @@ virDomainVsockDefParseXML(virDomainXMLOptionPtr xmlopt,
+     if (virDomainDeviceInfoParseXML(xmlopt, node, &vsock->info, flags) < 0)
+         return NULL;
+ 
++    if (virDomainVirtioOptionsParseXML(virXPathNode("./driver", ctxt),
++                                       &vsock->virtio) < 0)
++        return NULL;
++
+     return g_steal_pointer(&vsock);
+ }
+ 
+@@ -23128,6 +23146,10 @@ virDomainVsockDefCheckABIStability(virDomainVsockDefPtr src,
+         return false;
+     }
+ 
++    if (src->virtio && dst->virtio &&
++        !virDomainVirtioOptionsCheckABIStability(src->virtio, dst->virtio))
++        return false;
++
+     if (!virDomainDeviceInfoCheckABIStability(&src->info, &dst->info))
+         return false;
+ 
+@@ -28027,6 +28049,7 @@ virDomainVsockDefFormat(virBufferPtr buf,
+     g_auto(virBuffer) childBuf = VIR_BUFFER_INIT_CHILD(buf);
+     g_auto(virBuffer) attrBuf = VIR_BUFFER_INITIALIZER;
+     g_auto(virBuffer) cidAttrBuf = VIR_BUFFER_INITIALIZER;
++    g_auto(virBuffer) drvAttrBuf = VIR_BUFFER_INITIALIZER;
+ 
+     if (vsock->model) {
+         virBufferAsprintf(&attrBuf, " model='%s'",
+@@ -28044,6 +28067,9 @@ virDomainVsockDefFormat(virBufferPtr buf,
+     if (virDomainDeviceInfoFormat(&childBuf, &vsock->info, 0) < 0)
+         return -1;
+ 
++    virDomainVirtioOptionsFormat(&drvAttrBuf, vsock->virtio);
++
++    virXMLFormatElement(&childBuf, "driver", &drvAttrBuf, NULL);
+     virXMLFormatElement(buf, "vsock", &attrBuf, &childBuf);
+ 
+     return 0;
+diff --git a/src/conf/domain_conf.h b/src/conf/domain_conf.h
+index 6ae89fa49..e11cde021 100644
+--- a/src/conf/domain_conf.h
++++ b/src/conf/domain_conf.h
+@@ -2359,6 +2359,7 @@ struct _virDomainVsockDef {
+     virTristateBool auto_cid;
+ 
+     virDomainDeviceInfo info;
++    virDomainVirtioOptionsPtr virtio;
+ };
+ 
+ struct _virDomainVirtioOptions {
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index cc2e1d29a..d7255bd67 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -9673,6 +9673,10 @@ qemuBuildVsockDevStr(virDomainDefPtr def,
+     virBufferAsprintf(&buf, ",id=%s", vsock->info.alias);
+     virBufferAsprintf(&buf, ",guest-cid=%u", vsock->guest_cid);
+     virBufferAsprintf(&buf, ",vhostfd=%s%u", fdprefix, priv->vhostfd);
++
++    if (qemuBuildVirtioOptionsStr(&buf, vsock->virtio, qemuCaps) < 0)
++	return NULL;
++
+     if (qemuBuildDeviceAddressStr(&buf, def, &vsock->info, qemuCaps) < 0)
+         return NULL;
+ 
+diff --git a/tests/qemuxml2argvdata/vhost-vsock-ccw-iommu.s390x-latest.args b/tests/qemuxml2argvdata/vhost-vsock-ccw-iommu.s390x-latest.args
+new file mode 100644
+index 000000000..d50e77f00
+--- /dev/null
++++ b/tests/qemuxml2argvdata/vhost-vsock-ccw-iommu.s390x-latest.args
+@@ -0,0 +1,37 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/tmp/lib/domain--1-QEMUGuest1 \
++USER=test \
++LOGNAME=test \
++XDG_DATA_HOME=/tmp/lib/domain--1-QEMUGuest1/.local/share \
++XDG_CACHE_HOME=/tmp/lib/domain--1-QEMUGuest1/.cache \
++XDG_CONFIG_HOME=/tmp/lib/domain--1-QEMUGuest1/.config \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu-system-s390x \
++-name guest=QEMUGuest1,debug-threads=on \
++-S \
++-object secret,id=masterKey0,format=raw,\
++file=/tmp/lib/domain--1-QEMUGuest1/master-key.aes \
++-machine s390-ccw-virtio,accel=tcg,usb=off,dump-guest-core=off \
++-m 214 \
++-overcommit mem-lock=off \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid c7a5fdbd-edaf-9455-926a-d65c16db1809 \
++-display none \
++-no-user-config \
++-nodefaults \
++-chardev socket,id=charmonitor,fd=1729,server,nowait \
++-mon chardev=charmonitor,id=monitor,mode=control \
++-rtc base=utc \
++-no-shutdown \
++-boot strict=on \
++-drive file=/dev/HostVG/QEMUGuest1,format=raw,if=none,\
++id=drive-virtio-disk0 \
++-device virtio-blk-ccw,scsi=off,devno=fe.0.0000,\
++drive=drive-virtio-disk0,id=virtio-disk0,bootindex=1 \
++-device virtio-balloon-ccw,id=balloon0,devno=fe.0.0001 \
++-sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,\
++resourcecontrol=deny \
++-device vhost-vsock-ccw,id=vsock0,guest-cid=4,vhostfd=6789,\
++iommu_platform=on,devno=fe.0.0002 \
++-msg timestamp=on
+diff --git a/tests/qemuxml2argvdata/vhost-vsock-ccw-iommu.xml b/tests/qemuxml2argvdata/vhost-vsock-ccw-iommu.xml
+new file mode 100644
+index 000000000..8ec5bda66
+--- /dev/null
++++ b/tests/qemuxml2argvdata/vhost-vsock-ccw-iommu.xml
+@@ -0,0 +1,34 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='s390x' machine='s390-ccw-virtio'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-s390x</emulator>
++    <disk type='block' device='disk'>
++      <driver name='qemu' type='raw'/>
++      <source dev='/dev/HostVG/QEMUGuest1'/>
++      <target dev='hda' bus='virtio'/>
++      <address type='ccw' cssid='0xfe' ssid='0x0' devno='0x0000'/>
++    </disk>
++    <controller type='pci' index='0' model='pci-root'/>
++    <memballoon model='virtio'>
++      <address type='ccw' cssid='0xfe' ssid='0x0' devno='0x0001'/>
++    </memballoon>
++    <panic model='s390'/>
++    <vsock model='virtio'>
++      <cid auto='no' address='4'/>
++      <address type='ccw' cssid='0xfe' ssid='0x0' devno='0x0002'/>
++      <driver iommu='on'/>
++    </vsock>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index 9a5ab7dbc..4d2a024ae 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -3030,6 +3030,7 @@ mymain(void)
+     DO_TEST_CAPS_LATEST("vhost-vsock-auto");
+     DO_TEST_CAPS_ARCH_LATEST("vhost-vsock-ccw", "s390x");
+     DO_TEST_CAPS_ARCH_LATEST("vhost-vsock-ccw-auto", "s390x");
++    DO_TEST_CAPS_ARCH_LATEST("vhost-vsock-ccw-iommu", "s390x");
+ 
+     DO_TEST_CAPS_VER("launch-security-sev", "2.12.0");
+ 
+diff --git a/tests/qemuxml2xmloutdata/vhost-vsock-ccw-iommu.s390x-latest.xml b/tests/qemuxml2xmloutdata/vhost-vsock-ccw-iommu.s390x-latest.xml
+new file mode 100644
+index 000000000..8ec5bda66
+--- /dev/null
++++ b/tests/qemuxml2xmloutdata/vhost-vsock-ccw-iommu.s390x-latest.xml
+@@ -0,0 +1,34 @@
++<domain type='qemu'>
++  <name>QEMUGuest1</name>
++  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
++  <memory unit='KiB'>219136</memory>
++  <currentMemory unit='KiB'>219136</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='s390x' machine='s390-ccw-virtio'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-s390x</emulator>
++    <disk type='block' device='disk'>
++      <driver name='qemu' type='raw'/>
++      <source dev='/dev/HostVG/QEMUGuest1'/>
++      <target dev='hda' bus='virtio'/>
++      <address type='ccw' cssid='0xfe' ssid='0x0' devno='0x0000'/>
++    </disk>
++    <controller type='pci' index='0' model='pci-root'/>
++    <memballoon model='virtio'>
++      <address type='ccw' cssid='0xfe' ssid='0x0' devno='0x0001'/>
++    </memballoon>
++    <panic model='s390'/>
++    <vsock model='virtio'>
++      <cid auto='no' address='4'/>
++      <address type='ccw' cssid='0xfe' ssid='0x0' devno='0x0002'/>
++      <driver iommu='on'/>
++    </vsock>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2xmltest.c b/tests/qemuxml2xmltest.c
+index 801041763..8d82a35e9 100644
+--- a/tests/qemuxml2xmltest.c
++++ b/tests/qemuxml2xmltest.c
+@@ -1416,6 +1416,7 @@ mymain(void)
+             QEMU_CAPS_CCW);
+     DO_TEST("vhost-vsock-ccw-auto", QEMU_CAPS_DEVICE_VHOST_VSOCK,
+             QEMU_CAPS_CCW);
++    DO_TEST_CAPS_ARCH_LATEST("vhost-vsock-ccw-iommu", "s390x");
+ 
+     DO_TEST("riscv64-virt",
+             QEMU_CAPS_DEVICE_VIRTIO_MMIO);
+-- 
+2.27.0
+

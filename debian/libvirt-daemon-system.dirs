@@ -1,3 +1,4 @@
+/usr/share/apport/package-hooks
 /var/lib/libvirt/boot
 /var/lib/libvirt/images
 /var/lib/libvirt/qemu
@@ -9,5 +10,6 @@
 /var/log/libvirt/uml
 /var/log/libvirt/lxc
 /etc/libvirt/hooks
+/etc/dnsmasq.d-available
 /usr/share/polkit-1/rules.d/
 /var/lib/polkit-1/localauthority/10-vendor.d/

@@ -1,0 +1,61 @@
+From 372b2cf1ca3f4361546732a3f5f9c0c0be2591e9 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 26 Mar 2020 15:23:28 +0100
+Subject: [PATCH] cpu_x86: Introduce virCPUx86SignaturesFree
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The function will be used for freeing virCPUx86Signatures structure
+introduced later in this series.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=372b2cf1ca
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index b6ba26b0d0..dd936e28a4 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -1090,6 +1090,13 @@ x86FeatureParse(xmlXPathContextPtr ctxt,
+ }
+ 
+ 
++static void
++virCPUx86SignaturesFree(uint32_t *signatures)
++{
++    g_free(signatures);
++}
++
++
+ static int
+ virCPUx86SignaturesCopy(virCPUx86ModelPtr dst,
+                         virCPUx86ModelPtr src)
+@@ -1149,7 +1156,7 @@ x86ModelFree(virCPUx86ModelPtr model)
+         return;
+ 
+     g_free(model->name);
+-    g_free(model->signatures);
++    virCPUx86SignaturesFree(model->signatures);
+     virCPUx86DataClear(&model->data);
+     g_free(model);
+ }
+@@ -1414,7 +1421,7 @@ x86ModelParseSignatures(virCPUx86ModelPtr model,
+         return n;
+ 
+     /* Remove inherited signatures. */
+-    VIR_FREE(model->signatures);
++    virCPUx86SignaturesFree(model->signatures);
+ 
+     model->nsignatures = n;
+     if (VIR_ALLOC_N(model->signatures, n) < 0)
+-- 
+2.31.1
+

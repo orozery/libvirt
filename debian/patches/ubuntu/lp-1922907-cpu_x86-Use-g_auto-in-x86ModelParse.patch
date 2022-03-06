@@ -1,0 +1,77 @@
+From b239a60967cc2979f01e4521d6582b7d6acedd72 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 11:29:36 +0100
+Subject: [PATCH] cpu_x86: Use g_auto* in x86ModelParse
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=b239a60967
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 23 +++++++++--------------
+ 1 file changed, 9 insertions(+), 14 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 1f76fe1e5c..983730f0c2 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -1493,41 +1493,36 @@ x86ModelParse(xmlXPathContextPtr ctxt,
+               void *data)
+ {
+     virCPUx86MapPtr map = data;
+-    virCPUx86ModelPtr model = NULL;
+-    int ret = -1;
++    g_autoptr(virCPUx86Model) model = NULL;
+ 
+     if (x86ModelFind(map, name)) {
+         virReportError(VIR_ERR_INTERNAL_ERROR,
+                        _("Multiple definitions of CPU model '%s'"), name);
+-        goto cleanup;
++        return -1;
+     }
+ 
+     model = g_new0(virCPUx86Model, 1);
+     model->name = g_strdup(name);
+ 
+     if (x86ModelParseDecode(model, ctxt) < 0)
+-        goto cleanup;
++        return -1;
+ 
+     if (x86ModelParseAncestor(model, ctxt, map) < 0)
+-        goto cleanup;
++        return -1;
+ 
+     if (x86ModelParseSignatures(model, ctxt) < 0)
+-        goto cleanup;
++        return -1;
+ 
+     if (x86ModelParseVendor(model, ctxt, map) < 0)
+-        goto cleanup;
++        return -1;
+ 
+     if (x86ModelParseFeatures(model, ctxt, map) < 0)
+-        goto cleanup;
++        return -1;
+ 
+     if (VIR_APPEND_ELEMENT(map->models, map->nmodels, model) < 0)
+-        goto cleanup;
+-
+-    ret = 0;
++        return -1;
+ 
+- cleanup:
+-    x86ModelFree(model);
+-    return ret;
++    return 0;
+ }
+ 
+ 
+-- 
+2.31.1
+

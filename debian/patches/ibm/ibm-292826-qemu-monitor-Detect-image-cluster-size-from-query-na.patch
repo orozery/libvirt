@@ -1,0 +1,53 @@
+From fd49364d8b3e30db1891685ec8a7886ba05f2476 Mon Sep 17 00:00:00 2001
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 26 Aug 2020 16:41:17 +0200
+Subject: [PATCH] qemu: monitor: Detect image cluster size from
+ 'query-named-block-nodes'
+
+Configuring the cluster size of an image may have performance
+implications. This patch allows us to detect cluster size for existing
+images so that we will be able to propagate it to new images which are
+based on existing images e.g. during snapshots/block-copy/etc.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=fd49364d
+Last-Update: 2020-09-10
+
+---
+ src/qemu/qemu_monitor.h      | 3 +++
+ src/qemu/qemu_monitor_json.c | 3 +++
+ 2 files changed, 6 insertions(+)
+
+diff --git a/src/qemu/qemu_monitor.h b/src/qemu/qemu_monitor.h
+index 3e4ef7e821..d3f7797085 100644
+--- a/src/qemu/qemu_monitor.h
++++ b/src/qemu/qemu_monitor.h
+@@ -696,6 +696,9 @@ struct _qemuBlockNamedNodeData {
+ 
+     qemuBlockNamedNodeDataBitmapPtr *bitmaps;
+     size_t nbitmaps;
++
++    /* the cluster size of the image is valid only when > 0 */
++    unsigned long long clusterSize;
+ };
+ 
+ virHashTablePtr
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index 9cdf6c0f7f..e6d2e7d4db 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -2997,6 +2997,9 @@ qemuMonitorJSONBlockGetNamedNodeDataWorker(size_t pos G_GNUC_UNUSED,
+     if (virJSONValueObjectGetNumberUlong(img, "actual-size", &ent->physical) < 0)
+         ent->physical = ent->capacity;
+ 
++    /* try looking up the cluster size */
++    ignore_value(virJSONValueObjectGetNumberUlong(img, "cluster-size", &ent->clusterSize));
++
+     if ((bitmaps = virJSONValueObjectGetArray(val, "dirty-bitmaps")))
+         qemuMonitorJSONBlockGetNamedNodeDataBitmaps(bitmaps, ent);
+ 
+-- 
+2.28.0
+

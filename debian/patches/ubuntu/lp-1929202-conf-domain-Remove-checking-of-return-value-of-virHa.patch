@@ -1,0 +1,61 @@
+From 2a5ea0a0c1843c7c43e673b3d2082cc3abdef602 Mon Sep 17 00:00:00 2001
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 28 Jan 2020 13:40:24 +0100
+Subject: [PATCH] conf: domain: Remove checking of return value of
+ virHashCreateFull
+
+This module has last two direct checks whether the value returned by
+virHashCreateFull is NULL. Remove them so that static analyzers don't
+get the false idea that checking the value is necessary.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+
+Origin: backport, https://libvirt.org/git/?p=libvirt.git;a=commit;h=2a5ea0a0c1
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1929202
+Last-Update: 2021-07-20
+
+---
+ src/conf/domain_addr.c | 32 +++++++++++++-------------------
+ 1 file changed, 13 insertions(+), 19 deletions(-)
+
+--- a/src/conf/domain_addr.c
++++ b/src/conf/domain_addr.c
+@@ -1037,26 +1037,20 @@ virDomainPCIAddressSetExtensionAlloc(vir
+         if (VIR_ALLOC(addrs->zpciIds) < 0)
+             return -1;
+ 
+-        if (!(addrs->zpciIds->uids = virHashCreateFull(10, NULL,
+-                                                       virZPCIAddrKeyCode,
+-                                                       virZPCIAddrKeyEqual,
+-                                                       virZPCIAddrKeyCopy,
+-                                                       virZPCIAddrKeyFree)))
+-            goto error;
+-
+-        if (!(addrs->zpciIds->fids = virHashCreateFull(10, NULL,
+-                                                       virZPCIAddrKeyCode,
+-                                                       virZPCIAddrKeyEqual,
+-                                                       virZPCIAddrKeyCopy,
+-                                                       virZPCIAddrKeyFree)))
+-            goto error;
++        addrs->zpciIds->uids = virHashCreateFull(10, NULL,
++                                                 virZPCIAddrKeyCode,
++                                                 virZPCIAddrKeyEqual,
++                                                 virZPCIAddrKeyCopy,
++                                                 virZPCIAddrKeyFree);
++
++        addrs->zpciIds->fids = virHashCreateFull(10, NULL,
++                                                 virZPCIAddrKeyCode,
++                                                 virZPCIAddrKeyEqual,
++                                                 virZPCIAddrKeyCopy,
++                                                 virZPCIAddrKeyFree);
+     }
+ 
+     return 0;
+-
+- error:
+-    virDomainPCIAddressSetExtensionFree(addrs);
+-    return -1;
+ }
+ 
+ 

@@ -1,0 +1,22 @@
+Description: Changes required for libvirt backport to Bionic.
+  3) d/p/ubuntu/update_build_locale.patch: This is a slight modification
+     to upstream commit [1] to fix build failures [2] on bionic backport.
+     The use of LC_CTYPE=C.UTF-8 fixes the failures and is along the
+     lines of PEP 538 [3].
+     [1] https://github.com/libvirt/libvirt/commit/ada268012a03b9be83756aba2c0e14d206f5e70f
+     [2] The following commands cause build to fail for bionic:
+     LC_ALL= LANG=C LC_CTYPE=en_US.UTF-8 /usr/bin/python3 ./scripts/check-aclrules.py ./src/qemu/qemu_domain.c
+     LC_ALL= LANG=C LC_CTYPE=en_US.UTF-8 /usr/bin/python3 ./scripts/check-driverimpls.py ./src/openvz/openvz_util.c
+     [3] https://docs.python.org/3/whatsnew/3.7.html#pep-538-legacy-c-locale-coercion
+Author: Corey Bryant <corey.bryant@canonical.com>
+--- a/configure.ac
++++ b/configure.ac
+@@ -712,7 +712,7 @@
+ dnl Python3 < 3.7 treats the C locale as 7-bit only.
+ dnl We must force env vars so it treats it as UTF-8
+ dnl regardless of the user's locale.
+-RUNUTF8="LC_ALL= LANG=C LC_CTYPE=en_US.UTF-8"
++RUNUTF8="LC_ALL= LANG=C LC_CTYPE=C.UTF-8"
+ AC_SUBST(RUNUTF8)
+ 
+ 

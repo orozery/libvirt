@@ -1,0 +1,36 @@
+From b6911f3285a80c6bde0574f4bdc9d4294c021bf4 Mon Sep 17 00:00:00 2001
+From: Serge Hallyn <serge.hallyn@ubuntu.com>
+Date: Thu, 11 May 2017 12:21:30 +0200
+Subject: [PATCH 30/33] virt-aa-helper: Complete 9p support
+
+Allow links on 9p shares in addition to rw.
+
+Note: on review Guido wondered whether it would be possible to
+allow links only if the target is below the source path. If that
+is possible anyhow.
+
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1378434
+
+Forwarded: no (part of continuous upstreaming effort)
+Signed-off-by: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Signed-off-by: Stefan Bader <stefan.bader@canonical.com>
+---
+ src/security/virt-aa-helper.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/security/virt-aa-helper.c b/src/security/virt-aa-helper.c
+index 7f3b7ad..87a5481 100644
+--- a/src/security/virt-aa-helper.c
++++ b/src/security/virt-aa-helper.c
+@@ -1108,7 +1108,7 @@ get_files(vahControl * ctl)
+             /* We don't need to add deny rw rules for readonly mounts,
+              * this can only lead to troubles when mounting / readonly.
+              */
+-            if (vah_add_path(&buf, fs->src->path, fs->readonly ? "R" : "rw", true) != 0)
++            if (vah_add_path(&buf, fs->src->path, fs->readonly ? "R" : "rwl", true) != 0)
+                 goto cleanup;
+         }
+     }
+-- 
+2.7.4
+

@@ -1,0 +1,47 @@
+From e60620e28b63378bb215bfd61b525a60b6660983 Mon Sep 17 00:00:00 2001
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Wed, 26 Aug 2020 16:43:29 +0200
+Subject: [PATCH] qemu: block: Allow specifying cluster size when using
+ 'blockdev-create'
+
+'blockdev-create' allows us to create the image with a custom cluster
+size if we wish to. Wire it up for 'qcow2'.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=e60620e2
+Last-Update: 2020-09-10
+
+---
+ src/qemu/qemu_block.c     | 1 +
+ src/util/virstoragefile.h | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/src/qemu/qemu_block.c b/src/qemu/qemu_block.c
+index 26c1b42428..0113c64f0f 100644
+--- a/src/qemu/qemu_block.c
++++ b/src/qemu/qemu_block.c
+@@ -2315,6 +2315,7 @@ qemuBlockStorageSourceCreateGetFormatPropsQcow2(virStorageSourcePtr src,
+                                  "s:file", src->nodestorage,
+                                  "U:size", src->capacity,
+                                  "S:version", qcow2version,
++                                 "P:cluster-size", src->clusterSize,
+                                  NULL) < 0)
+         return -1;
+ 
+diff --git a/src/util/virstoragefile.h b/src/util/virstoragefile.h
+index f73b3ee005..87763cf389 100644
+--- a/src/util/virstoragefile.h
++++ b/src/util/virstoragefile.h
+@@ -318,6 +318,7 @@ struct _virStorageSource {
+     unsigned long long capacity; /* in bytes, 0 if unknown */
+     unsigned long long allocation; /* in bytes, 0 if unknown */
+     unsigned long long physical; /* in bytes, 0 if unknown */
++    unsigned long long clusterSize; /* in bytes, 0 if unknown */
+     bool has_allocation; /* Set to true when provided in XML */
+ 
+     size_t nseclabels;
+-- 
+2.28.0
+

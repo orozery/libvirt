@@ -1,0 +1,217 @@
+From 892b7c70f66abc511e1251382c9183493024f253 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 17 Jun 2020 14:50:42 +0200
+Subject: [PATCH] cpu_map: Add missing x86 features in 0x80000008 CPUID leaf
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+
+Origin: backport, https://libvirt.org/git/?p=libvirt.git;a=commit;h=892b7c70
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1887490
+Last-Update: 2020-10-14
+X-Backport-Note:
+  - some cpu types didn't exist yet, skipped those hunks
+  - qemu 5.1 didn't exist yet, skipped those hunks
+
+---
+ src/cpu_map/x86_features.xml                                | 6 ++++++
+ tests/cputestdata/x86_64-cpuid-Cooperlake-enabled.xml       | 2 +-
+ tests/cputestdata/x86_64-cpuid-Cooperlake-json.xml          | 1 +
+ .../cputestdata/x86_64-cpuid-EPYC-7601-32-Core-disabled.xml | 2 +-
+ tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-guest.xml  | 1 +
+ tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-host.xml   | 1 +
+ .../x86_64-cpuid-EPYC-7601-32-Core-ibpb-disabled.xml        | 2 +-
+ .../x86_64-cpuid-EPYC-7601-32-Core-ibpb-guest.xml           | 1 +
+ .../x86_64-cpuid-EPYC-7601-32-Core-ibpb-host.xml            | 1 +
+ .../x86_64-cpuid-Hygon-C86-7185-32-core-disabled.xml        | 2 +-
+ .../x86_64-cpuid-Hygon-C86-7185-32-core-guest.xml           | 1 +
+ .../x86_64-cpuid-Hygon-C86-7185-32-core-host.xml            | 1 +
+ .../x86_64-cpuid-Ryzen-7-1800X-Eight-Core-disabled.xml      | 2 +-
+ .../x86_64-cpuid-Ryzen-7-1800X-Eight-Core-guest.xml         | 1 +
+ .../x86_64-cpuid-Ryzen-7-1800X-Eight-Core-host.xml          | 1 +
+ .../x86_64-cpuid-Ryzen-9-3900X-12-Core-disabled.xml         | 1 +
+ .../x86_64-cpuid-Ryzen-9-3900X-12-Core-enabled.xml          | 2 +-
+ .../x86_64-cpuid-Ryzen-9-3900X-12-Core-guest.xml            | 2 ++
+ .../cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-host.xml | 2 ++
+ .../cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-json.xml | 1 +
+ tests/domaincapsdata/qemu_5.1.0-q35.x86_64.xml              | 2 ++
+ tests/domaincapsdata/qemu_5.1.0.x86_64.xml                  | 2 ++
+ 22 files changed, 31 insertions(+), 6 deletions(-)
+
+--- a/src/cpu_map/x86_features.xml
++++ b/src/cpu_map/x86_features.xml
+@@ -493,12 +493,18 @@
+   <feature name='clzero'>
+     <cpuid eax_in='0x80000008' ebx='0x00000001'/>
+   </feature>
++  <feature name='xsaveerptr'>
++    <cpuid eax_in='0x80000008' ebx='0x00000004'/>
++  </feature>
+   <feature name='wbnoinvd'>
+     <cpuid eax_in='0x80000008' ebx='0x00000200'/>
+   </feature>
+   <feature name='ibpb'>
+     <cpuid eax_in='0x80000008' ebx='0x00001000'/>
+   </feature>
++  <feature name='amd-stibp'>
++    <cpuid eax_in='0x80000008' ebx='0x00008000'/>
++  </feature>
+   <feature name='amd-ssbd'>
+     <cpuid eax_in='0x80000008' ebx='0x01000000'/>
+   </feature>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-disabled.xml
+@@ -4,5 +4,5 @@
+   <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x00000008' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x01c2300c' edx='0x00000000'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
+-  <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00000001' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00000005' ecx='0x00000000' edx='0x00000000'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-guest.xml
+@@ -14,4 +14,5 @@
+   <feature policy='require' name='perfctr_nb'/>
+   <feature policy='require' name='invtsc'/>
+   <feature policy='require' name='clzero'/>
++  <feature policy='require' name='xsaveerptr'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-host.xml
+@@ -15,4 +15,5 @@
+   <feature name='perfctr_nb'/>
+   <feature name='invtsc'/>
+   <feature name='clzero'/>
++  <feature name='xsaveerptr'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-disabled.xml
+@@ -4,5 +4,5 @@
+   <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x00000008' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x01c2300c' edx='0x08000000'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
+-  <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00000001' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00000005' ecx='0x00000000' edx='0x00000000'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-guest.xml
+@@ -14,5 +14,6 @@
+   <feature policy='require' name='perfctr_nb'/>
+   <feature policy='require' name='invtsc'/>
+   <feature policy='require' name='clzero'/>
++  <feature policy='require' name='xsaveerptr'/>
+   <feature policy='disable' name='rdtscp'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-host.xml
+@@ -15,4 +15,5 @@
+   <feature name='perfctr_nb'/>
+   <feature name='invtsc'/>
+   <feature name='clzero'/>
++  <feature name='xsaveerptr'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-disabled.xml
+@@ -4,5 +4,5 @@
+   <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x00000008' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x01c2300c' edx='0x00000000'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
+-  <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00000001' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00000005' ecx='0x00000000' edx='0x00000000'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-guest.xml
+@@ -14,4 +14,5 @@
+   <feature policy='require' name='perfctr_nb'/>
+   <feature policy='require' name='invtsc'/>
+   <feature policy='require' name='clzero'/>
++  <feature policy='require' name='xsaveerptr'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-host.xml
+@@ -15,4 +15,5 @@
+   <feature name='perfctr_nb'/>
+   <feature name='invtsc'/>
+   <feature name='clzero'/>
++  <feature name='xsaveerptr'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-disabled.xml
+@@ -5,5 +5,5 @@
+   <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x00000008' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x01c23008' edx='0x00000000'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
+-  <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00000001' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00000005' ecx='0x00000000' edx='0x00000000'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-guest.xml
+@@ -14,4 +14,5 @@
+   <feature policy='require' name='perfctr_nb'/>
+   <feature policy='require' name='invtsc'/>
+   <feature policy='require' name='clzero'/>
++  <feature policy='require' name='xsaveerptr'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-host.xml
+@@ -15,4 +15,5 @@
+   <feature name='perfctr_nb'/>
+   <feature name='invtsc'/>
+   <feature name='clzero'/>
++  <feature name='xsaveerptr'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-disabled.xml
+@@ -5,4 +5,5 @@
+   <cpuid eax_in='0x0000000f' ecx_in='0x01' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000006'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x01423408' edx='0x00000000'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
++  <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00008000' ecx='0x00000000' edx='0x00000000'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-enabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-enabled.xml
+@@ -5,6 +5,6 @@
+   <cpuid eax_in='0x00000007' ecx_in='0x00' eax='0x00000000' ebx='0x219c01ab' ecx='0x00400004' edx='0xa8000000'/>
+   <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x0000000f' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x008003f7' edx='0x2e500800'/>
+-  <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x03001201' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x03001205' ecx='0x00000000' edx='0x00000000'/>
+   <msr index='0x10a' edx='0x00000000' eax='0x00000069'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-guest.xml
+@@ -21,7 +21,9 @@
+   <feature policy='require' name='perfctr_nb'/>
+   <feature policy='require' name='invtsc'/>
+   <feature policy='require' name='clzero'/>
++  <feature policy='require' name='xsaveerptr'/>
+   <feature policy='require' name='wbnoinvd'/>
++  <feature policy='require' name='amd-stibp'/>
+   <feature policy='require' name='amd-ssbd'/>
+   <feature policy='require' name='rdctl-no'/>
+   <feature policy='require' name='skip-l1dfl-vmentry'/>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-host.xml
+@@ -22,7 +22,9 @@
+   <feature name='perfctr_nb'/>
+   <feature name='invtsc'/>
+   <feature name='clzero'/>
++  <feature name='xsaveerptr'/>
+   <feature name='wbnoinvd'/>
++  <feature name='amd-stibp'/>
+   <feature name='amd-ssbd'/>
+   <feature name='rdctl-no'/>
+   <feature name='skip-l1dfl-vmentry'/>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-json.xml
+@@ -15,6 +15,7 @@
+   <feature policy='require' name='cmp_legacy'/>
+   <feature policy='require' name='perfctr_core'/>
+   <feature policy='require' name='clzero'/>
++  <feature policy='require' name='xsaveerptr'/>
+   <feature policy='require' name='wbnoinvd'/>
+   <feature policy='require' name='amd-ssbd'/>
+   <feature policy='require' name='virt-ssbd'/>

@@ -1,0 +1,34 @@
+From 8cb9d2495c0c2921bb7c9fc3059ed268790123b6 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 1 Apr 2020 01:01:27 +0200
+Subject: [PATCH] util: Define g_autoptr callback for FILE
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=8cb9d2495c
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1874647
+Last-Update: 2020-08-31
+
+---
+ src/util/virfile.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/util/virfile.h b/src/util/virfile.h
+index 0a520a7522..7a92364a5c 100644
+--- a/src/util/virfile.h
++++ b/src/util/virfile.h
+@@ -89,6 +89,7 @@ static inline void virForceCloseHelper(int *fd)
+  */
+ #define VIR_AUTOCLOSE __attribute__((cleanup(virForceCloseHelper))) int
+ 
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(FILE, fclose);
+ 
+ /* Opaque type for managing a wrapper around a fd.  */
+ struct _virFileWrapperFd;
+-- 
+2.28.0
+

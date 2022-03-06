@@ -1,0 +1,187 @@
+From a551dd5fdf71b252949e258eb49403df4d8db82d Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 1 Apr 2020 00:44:00 +0200
+Subject: [PATCH] hostcpu: Introduce virHostCPUGetSignature
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The purpose of this function is to give a short description that would
+be change when a host CPU is replaced with a different model. This is
+currently implemented by reading /proc/cpuinfo.
+
+It should be implemented for all architectures for which the QEMU driver
+stores host CPU data in the capabilities cache. In other words for archs
+that support host-model CPUs.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=a551dd5fdf
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1874647
+Last-Update: 2020-08-31
+
+---
+ src/libvirt_private.syms  |  2 ++
+ src/util/virhostcpu.c     | 37 ++++++++++++++++++++++++++++++++++
+ src/util/virhostcpu.h     |  2 ++
+ src/util/virhostcpupriv.h |  4 ++++
+ tests/virhostcputest.c    | 42 ++++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 86 insertions(+), 1 deletion(-)
+
+diff --git a/src/libvirt_private.syms b/src/libvirt_private.syms
+index fd04fcece3..a6af44fe1c 100644
+--- a/src/libvirt_private.syms
++++ b/src/libvirt_private.syms
+@@ -2218,9 +2218,11 @@ virHostCPUGetMSR;
+ virHostCPUGetOnline;
+ virHostCPUGetOnlineBitmap;
+ virHostCPUGetPresentBitmap;
++virHostCPUGetSignature;
+ virHostCPUGetStats;
+ virHostCPUGetThreadsPerSubcore;
+ virHostCPUHasBitmap;
++virHostCPUReadSignature;
+ virHostCPUStatsAssign;
+ 
+ 
+diff --git a/src/util/virhostcpu.c b/src/util/virhostcpu.c
+index 721d959d46..bfef022f64 100644
+--- a/src/util/virhostcpu.c
++++ b/src/util/virhostcpu.c
+@@ -1416,3 +1416,40 @@ virHostCPUGetTscInfo(void)
+ #endif /* HAVE_LINUX_KVM_H && defined(KVM_GET_MSRS) && \
+           (defined(__i386__) || defined(__x86_64__)) && \
+           (defined(__linux__) || defined(__FreeBSD__)) */
++
++int
++virHostCPUReadSignature(virArch arch G_GNUC_UNUSED,
++                        FILE *cpuinfo G_GNUC_UNUSED,
++                        char **signature G_GNUC_UNUSED)
++{
++    return 0;
++}
++
++#ifdef __linux__
++
++int
++virHostCPUGetSignature(char **signature)
++{
++    g_autoptr(FILE) cpuinfo = NULL;
++
++    *signature = NULL;
++
++    if (!(cpuinfo = fopen(CPUINFO_PATH, "r"))) {
++        virReportSystemError(errno, _("Failed to open cpuinfo file '%s'"),
++                             CPUINFO_PATH);
++        return -1;
++    }
++
++    return virHostCPUReadSignature(virArchFromHost(), cpuinfo, signature);
++}
++
++#else
++
++int
++virHostCPUGetSignature(char **signature)
++{
++    *signature = NULL;
++    return 0;
++}
++
++#endif /* __linux__ */
+diff --git a/src/util/virhostcpu.h b/src/util/virhostcpu.h
+index 9be2e51a38..48b1431ca4 100644
+--- a/src/util/virhostcpu.h
++++ b/src/util/virhostcpu.h
+@@ -79,3 +79,5 @@ int virHostCPUGetMSR(unsigned long index,
+                      uint64_t *msr);
+ 
+ virHostCPUTscInfoPtr virHostCPUGetTscInfo(void);
++
++int virHostCPUGetSignature(char **signature);
+diff --git a/src/util/virhostcpupriv.h b/src/util/virhostcpupriv.h
+index afb415f9ea..f7b1e7c93c 100644
+--- a/src/util/virhostcpupriv.h
++++ b/src/util/virhostcpupriv.h
+@@ -42,3 +42,7 @@ int virHostCPUGetStatsLinux(FILE *procstat,
+                             virNodeCPUStatsPtr params,
+                             int *nparams);
+ #endif
++
++int virHostCPUReadSignature(virArch arch,
++                            FILE *cpuinfo,
++                            char **signature);
+diff --git a/tests/virhostcputest.c b/tests/virhostcputest.c
+index 70a723098b..62bacddefb 100644
+--- a/tests/virhostcputest.c
++++ b/tests/virhostcputest.c
+@@ -1,6 +1,7 @@
+ #include <config.h>
+ 
+ #include <unistd.h>
++#include <fcntl.h>
+ 
+ #include "testutils.h"
+ #include "internal.h"
+@@ -193,6 +194,38 @@ linuxTestHostCPU(const void *opaque)
+     return result;
+ }
+ 
++
++static int
++hostCPUSignature(const void *opaque)
++{
++    const struct linuxTestHostCPUData *data = opaque;
++    const char *arch = virArchToString(data->arch);
++    g_autofree char *cpuinfo = NULL;
++    g_autofree char *expected = NULL;
++    g_autofree char *signature = NULL;
++    g_autoptr(FILE) f = NULL;
++
++    cpuinfo = g_strdup_printf("%s/virhostcpudata/linux-%s-%s.cpuinfo",
++                              abs_srcdir, arch, data->testName);
++    expected = g_strdup_printf("%s/virhostcpudata/linux-%s-%s.signature",
++                               abs_srcdir, arch, data->testName);
++
++    if (!(f = fopen(cpuinfo, "r"))) {
++        virReportSystemError(errno,
++                             "Failed to open cpuinfo file '%s'", cpuinfo);
++        return -1;
++    }
++
++    if (virHostCPUReadSignature(data->arch, f, &signature) < 0)
++        return -1;
++
++    if (!signature && !virFileExists(expected))
++        return 0;
++
++    return virTestCompareToFile(signature, expected);
++}
++
++
+ struct nodeCPUStatsData {
+     const char *name;
+     int ncpus;
+@@ -268,10 +301,17 @@ mymain(void)
+     if (virInitialize() < 0)
+         return EXIT_FAILURE;
+ 
+-    for (i = 0; i < G_N_ELEMENTS(nodeData); i++)
++    for (i = 0; i < G_N_ELEMENTS(nodeData); i++) {
++        g_autofree char *sigTest = NULL;
++
+         if (virTestRun(nodeData[i].testName, linuxTestHostCPU, &nodeData[i]) != 0)
+             ret = -1;
+ 
++        sigTest = g_strdup_printf("%s CPU signature", nodeData[i].testName);
++        if (virTestRun(sigTest, hostCPUSignature, &nodeData[i]) != 0)
++            ret = -1;
++    }
++
+ # define DO_TEST_CPU_STATS(name, ncpus, shouldFail) \
+     do { \
+         static struct nodeCPUStatsData data = { name, ncpus, shouldFail}; \
+-- 
+2.28.0
+

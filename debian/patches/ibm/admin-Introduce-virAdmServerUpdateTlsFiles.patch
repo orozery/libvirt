@@ -1,0 +1,190 @@
+From 29e68c932fe4509aaa8dd1c84d54d0137de32f45 Mon Sep 17 00:00:00 2001
+From: Zhang Bo <oscar.zhangbo@huawei.com>
+Date: Sat, 7 Mar 2020 19:31:02 +0800
+Subject: [PATCH] admin: Introduce virAdmServerUpdateTlsFiles
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The server needs to use CA certificate, CRL, server certificate/key to
+complete the TLS handshake. If these files change, we needed to restart
+libvirtd for them to take effect. This API can update the TLS context
+*ONLINE* without restarting libvirtd.
+
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+Signed-off-by: Zhang Bo <oscar.zhangbo@huawei.com>
+Signed-off-by: Wu Qingliang <wuqingliang4@huawei.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=29e68c932f
+Last-Update: 2022-02-17
+
+---
+ include/libvirt/libvirt-admin.h      |  3 +++
+ src/admin/admin_protocol.x           | 12 ++++++++++-
+ src/admin/admin_server.c             |  9 +++++++++
+ src/admin/admin_server.h             |  3 +++
+ src/admin/libvirt-admin.c            | 30 ++++++++++++++++++++++++++++
+ src/admin/libvirt_admin_private.syms |  1 +
+ src/admin/libvirt_admin_public.syms  |  1 +
+ src/admin_protocol-structs           |  5 +++++
+ 8 files changed, 63 insertions(+), 1 deletion(-)
+
+diff --git a/include/libvirt/libvirt-admin.h b/include/libvirt/libvirt-admin.h
+index abf2792926..e414f776e4 100644
+--- a/include/libvirt/libvirt-admin.h
++++ b/include/libvirt/libvirt-admin.h
+@@ -402,6 +402,9 @@ int virAdmServerSetClientLimits(virAdmServerPtr srv,
+                                 int nparams,
+                                 unsigned int flags);
+ 
++int virAdmServerUpdateTlsFiles(virAdmServerPtr srv,
++                               unsigned int flags);
++
+ int virAdmConnectGetLoggingOutputs(virAdmConnectPtr conn,
+                                    char **outputs,
+                                    unsigned int flags);
+diff --git a/src/admin/admin_protocol.x b/src/admin/admin_protocol.x
+index 42e215d23a..7dc6724032 100644
+--- a/src/admin/admin_protocol.x
++++ b/src/admin/admin_protocol.x
+@@ -181,6 +181,11 @@ struct admin_server_set_client_limits_args {
+     unsigned int flags;
+ };
+ 
++struct admin_server_update_tls_files_args {
++    admin_nonnull_server srv;
++    unsigned int flags;
++};
++
+ struct admin_connect_get_logging_outputs_args {
+     unsigned int flags;
+ };
+@@ -314,5 +319,10 @@ enum admin_procedure {
+     /**
+      * @generate: both
+      */
+-    ADMIN_PROC_CONNECT_SET_LOGGING_FILTERS = 17
++    ADMIN_PROC_CONNECT_SET_LOGGING_FILTERS = 17,
++
++    /**
++     * @generate: both
++     */
++    ADMIN_PROC_SERVER_UPDATE_TLS_FILES = 18
+ };
+diff --git a/src/admin/admin_server.c b/src/admin/admin_server.c
+index ba87f701c3..ebc0cfb045 100644
+--- a/src/admin/admin_server.c
++++ b/src/admin/admin_server.c
+@@ -367,3 +367,12 @@ adminServerSetClientLimits(virNetServerPtr srv,
+ 
+     return 0;
+ }
++
++int
++adminServerUpdateTlsFiles(virNetServerPtr srv,
++                          unsigned int flags)
++{
++    virCheckFlags(0, -1);
++
++    return virNetServerUpdateTlsFiles(srv);
++}
+diff --git a/src/admin/admin_server.h b/src/admin/admin_server.h
+index 1d5cbec55f..08877a8edc 100644
+--- a/src/admin/admin_server.h
++++ b/src/admin/admin_server.h
+@@ -67,3 +67,6 @@ int adminServerSetClientLimits(virNetServerPtr srv,
+                                virTypedParameterPtr params,
+                                int nparams,
+                                unsigned int flags);
++
++int adminServerUpdateTlsFiles(virNetServerPtr srv,
++                              unsigned int flags);
+diff --git a/src/admin/libvirt-admin.c b/src/admin/libvirt-admin.c
+index a8592ebfd3..835b5560d2 100644
+--- a/src/admin/libvirt-admin.c
++++ b/src/admin/libvirt-admin.c
+@@ -1078,6 +1078,36 @@ virAdmServerSetClientLimits(virAdmServerPtr srv,
+     return ret;
+ }
+ 
++/**
++ * virAdmServerUpdateTlsFiles:
++ * @srv: a valid server object reference
++ * @flags: extra flags; not used yet, so callers should always pass 0
++ *
++ * Notify server to update tls file, such as cacert, cacrl, server cert / key.
++ *
++ * Returns 0 if the TLS files have been updated successfully or -1 in case of an
++ * error.
++ */
++int
++virAdmServerUpdateTlsFiles(virAdmServerPtr srv,
++                           unsigned int flags)
++{
++    int ret = -1;
++
++    VIR_DEBUG("srv=%p, flags=0x%x", srv, flags);
++    virResetLastError();
++
++    virCheckAdmServerGoto(srv, error);
++
++    if ((ret = remoteAdminServerUpdateTlsFiles(srv, flags)) < 0)
++        goto error;
++
++    return ret;
++ error:
++    virDispatchError(NULL);
++    return ret;
++}
++
+ /**
+  * virAdmConnectGetLoggingOutputs:
+  * @conn: pointer to an active admin connection
+diff --git a/src/admin/libvirt_admin_private.syms b/src/admin/libvirt_admin_private.syms
+index 9526412de8..157a45341e 100644
+--- a/src/admin/libvirt_admin_private.syms
++++ b/src/admin/libvirt_admin_private.syms
+@@ -31,6 +31,7 @@ xdr_admin_server_lookup_client_args;
+ xdr_admin_server_lookup_client_ret;
+ xdr_admin_server_set_client_limits_args;
+ xdr_admin_server_set_threadpool_parameters_args;
++xdr_admin_server_update_tls_files_args;
+ 
+ # datatypes.h
+ virAdmClientClass;
+diff --git a/src/admin/libvirt_admin_public.syms b/src/admin/libvirt_admin_public.syms
+index 9a3f843780..8126973e5b 100644
+--- a/src/admin/libvirt_admin_public.syms
++++ b/src/admin/libvirt_admin_public.syms
+@@ -38,6 +38,7 @@ LIBVIRT_ADMIN_2.0.0 {
+         virAdmClientClose;
+         virAdmServerGetClientLimits;
+         virAdmServerSetClientLimits;
++        virAdmServerUpdateTlsFiles;
+ };
+ 
+ LIBVIRT_ADMIN_3.0.0 {
+diff --git a/src/admin_protocol-structs b/src/admin_protocol-structs
+index 983e6e5292..76c511babf 100644
+--- a/src/admin_protocol-structs
++++ b/src/admin_protocol-structs
+@@ -118,6 +118,10 @@ struct admin_server_set_client_limits_args {
+         } params;
+         u_int                      flags;
+ };
++struct admin_server_update_tls_files_args {
++        admin_nonnull_server       srv;
++        u_int                      flags;
++};
+ struct admin_connect_get_logging_outputs_args {
+         u_int                      flags;
+ };
+@@ -158,4 +162,5 @@ enum admin_procedure {
+         ADMIN_PROC_CONNECT_GET_LOGGING_FILTERS = 15,
+         ADMIN_PROC_CONNECT_SET_LOGGING_OUTPUTS = 16,
+         ADMIN_PROC_CONNECT_SET_LOGGING_FILTERS = 17,
++        ADMIN_PROC_SERVER_UPDATE_TLS_FILES = 18,
+ };
+-- 
+2.35.0
+

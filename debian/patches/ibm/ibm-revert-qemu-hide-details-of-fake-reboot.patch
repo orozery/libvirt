@@ -1,0 +1,155 @@
+Description: Revert of 6c6d93 for IBM Cloud
+ As discussed in case 00272974 this is not wanted by IBM.
+Forwarded: no
+Author: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Origin: https://libvirt.org/git/?p=libvirt.git;a=commit;h=6c6d93bc62fd2be9ccf07b579c1f10edd3de7e4c
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/<todo-bug>
+Last-Update: 2020-04-08
+
+## original commit ##
+
+From 6c6d93bc62fd2be9ccf07b579c1f10edd3de7e4c Mon Sep 17 00:00:00 2001
+From: Nikolay Shirokovskiy <nshirokovskiy@virtuozzo.com>
+Date: Thu, 19 Dec 2019 11:02:06 +0300
+Subject: [PATCH] qemu: hide details of fake reboot
+
+If we use fake reboot then domain goes thru running->shutdown->running
+state changes with shutdown state only for short period of time.  At
+least this is implementation details leaking into API. And also there is
+one real case when this is not convinient. I'm doing a backup with the
+help of temporary block snapshot (with the help of qemu's API which is
+used in the newly created libvirt's backup API). If guest is shutdowned
+I want to continue to backup so I don't kill the process and domain is
+in shutdown state. Later when backup is finished I want to destroy qemu
+process. So I check if it is in shutdowned state and destroy it if it
+is. Now if instead of shutdown domain got fake reboot then I can destroy
+process in the middle of fake reboot process.
+
+After shutdown event we also get stop event and now as domain state is
+running it will be transitioned to paused state and back to running
+later. Though this is not critical for the described case I guess it is
+better not to leak these details to user too. So let's leave domain in
+running state on stop event if fake reboot is in process.
+
+Reconnection code handles this patch without modification. It detects
+that qemu is not running due to shutdown and then calls qemuProcessShutdownOrReboot
+which reboots as fake reboot flag is set.
+
+Signed-off-by: Nikolay Shirokovskiy <nshirokovskiy@virtuozzo.com>
+Reviewed-by: Cole Robinson <crobinso@redhat.com>
+---
+ src/qemu/qemu_domain.h  |  1 +
+ src/qemu/qemu_process.c | 61 ++++++++++++++++++++++++-----------------
+ 2 files changed, 37 insertions(+), 25 deletions(-)
+
+
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -319,7 +319,6 @@ struct _qemuDomainObjPrivate {
+     char *lockState;
+ 
+     bool fakeReboot;
+-    bool pausedShutdown;
+     virTristateBool allowReboot;
+ 
+     int jobs_queued;
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -502,7 +502,6 @@ qemuProcessFakeReboot(void *opaque)
+     qemuDomainObjEndJob(driver, vm);
+ 
+  cleanup:
+-    priv->pausedShutdown = false;
+     if (ret == -1)
+         ignore_value(qemuProcessKill(vm, VIR_QEMU_PROCESS_KILL_FORCE));
+     virDomainObjEndAPI(&vm);
+@@ -525,7 +524,6 @@ qemuProcessShutdownOrReboot(virQEMUDrive
+                             vm) < 0) {
+             VIR_ERROR(_("Failed to create reboot thread, killing domain"));
+             ignore_value(qemuProcessKill(vm, VIR_QEMU_PROCESS_KILL_NOWAIT));
+-            priv->pausedShutdown = false;
+             virObjectUnref(vm);
+         }
+     } else {
+@@ -587,41 +585,35 @@ qemuProcessHandleShutdown(qemuMonitorPtr
+         goto unlock;
+     }
+ 
+-    /* In case of fake reboot qemu shutdown state is transient so don't
+-     * change domain state nor send events. */
+-    if (!priv->fakeReboot) {
+-        VIR_DEBUG("Transitioned guest %s to shutdown state",
+-                  vm->def->name);
+-        virDomainObjSetState(vm,
+-                             VIR_DOMAIN_SHUTDOWN,
+-                             VIR_DOMAIN_SHUTDOWN_UNKNOWN);
+-
+-        switch (guest_initiated) {
+-        case VIR_TRISTATE_BOOL_YES:
+-            detail = VIR_DOMAIN_EVENT_SHUTDOWN_GUEST;
+-            break;
+-
+-        case VIR_TRISTATE_BOOL_NO:
+-            detail = VIR_DOMAIN_EVENT_SHUTDOWN_HOST;
+-            break;
+-
+-        case VIR_TRISTATE_BOOL_ABSENT:
+-        case VIR_TRISTATE_BOOL_LAST:
+-        default:
+-            detail = VIR_DOMAIN_EVENT_SHUTDOWN_FINISHED;
+-            break;
+-        }
++    VIR_DEBUG("Transitioned guest %s to shutdown state",
++              vm->def->name);
++    virDomainObjSetState(vm,
++                         VIR_DOMAIN_SHUTDOWN,
++                         VIR_DOMAIN_SHUTDOWN_UNKNOWN);
++
++    switch (guest_initiated) {
++    case VIR_TRISTATE_BOOL_YES:
++        detail = VIR_DOMAIN_EVENT_SHUTDOWN_GUEST;
++        break;
++
++    case VIR_TRISTATE_BOOL_NO:
++        detail = VIR_DOMAIN_EVENT_SHUTDOWN_HOST;
++        break;
++
++    case VIR_TRISTATE_BOOL_ABSENT:
++    case VIR_TRISTATE_BOOL_LAST:
++    default:
++        detail = VIR_DOMAIN_EVENT_SHUTDOWN_FINISHED;
++        break;
++    }
+ 
+-        event = virDomainEventLifecycleNewFromObj(vm,
+-                                                  VIR_DOMAIN_EVENT_SHUTDOWN,
+-                                                  detail);
+-
+-        if (virDomainObjSave(vm, driver->xmlopt, cfg->stateDir) < 0) {
+-            VIR_WARN("Unable to save status on vm %s after state change",
+-                     vm->def->name);
+-        }
+-    } else {
+-        priv->pausedShutdown = true;
++    event = virDomainEventLifecycleNewFromObj(vm,
++                                              VIR_DOMAIN_EVENT_SHUTDOWN,
++                                              detail);
++
++    if (virDomainObjSave(vm, driver->xmlopt, cfg->stateDir) < 0) {
++        VIR_WARN("Unable to save status on vm %s after state change",
++                 vm->def->name);
+     }
+ 
+     if (priv->agent)
+@@ -654,10 +646,7 @@ qemuProcessHandleStop(qemuMonitorPtr mon
+     reason = priv->pausedReason;
+     priv->pausedReason = VIR_DOMAIN_PAUSED_UNKNOWN;
+ 
+-    /* In case of fake reboot qemu paused state is transient so don't
+-     * reveal it in domain state nor sent events */
+-    if (virDomainObjGetState(vm, NULL) == VIR_DOMAIN_RUNNING &&
+-        !priv->pausedShutdown) {
++    if (virDomainObjGetState(vm, NULL) == VIR_DOMAIN_RUNNING) {
+         if (priv->job.asyncJob == QEMU_ASYNC_JOB_MIGRATION_OUT) {
+             if (priv->job.current->status == QEMU_DOMAIN_JOB_STATUS_POSTCOPY)
+                 reason = VIR_DOMAIN_PAUSED_POSTCOPY;

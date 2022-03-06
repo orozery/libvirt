@@ -1,0 +1,101 @@
+From 3bf6f9fe22dfbd3c1dcc614b31f2f4fe8b71a2f2 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 7 Oct 2020 23:15:23 +0200
+Subject: [PATCH] cpu_map: Remove monitor feature from EPYC-Rome
+
+The feature is filtered by KVM and never automatically enabled. So even
+though QEMU definition of EPYC-Rome contains this feature, the guest
+won't see it. Also domain capabilities will show it as disabled for KVM
+domains. Thus the feature should not really be included in our
+definition of EPYC-Rome.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+
+Origin: backport, https://libvirt.org/git/?p=libvirt.git;a=commit;h=3bf6f9fe
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1887490
+Last-Update: 2020-10-14
+X-Backport-Note:
+  - qemu 5.1/5.2 didn't exist yet, skipped those hunks
+
+---
+ src/cpu_map/x86_EPYC-Rome.xml                                  | 1 -
+ tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-guest.xml     | 1 +
+ tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-host.xml      | 1 +
+ tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-json.xml      | 1 -
+ tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-guest.xml | 1 +
+ tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-host.xml  | 1 +
+ tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-json.xml  | 1 -
+ tests/domaincapsdata/qemu_5.1.0-q35.x86_64.xml                 | 1 -
+ tests/domaincapsdata/qemu_5.1.0.x86_64.xml                     | 1 -
+ tests/domaincapsdata/qemu_5.2.0-q35.x86_64.xml                 | 1 -
+ tests/domaincapsdata/qemu_5.2.0.x86_64.xml                     | 1 -
+ 11 files changed, 4 insertions(+), 7 deletions(-)
+
+--- a/src/cpu_map/x86_EPYC-Rome.xml
++++ b/src/cpu_map/x86_EPYC-Rome.xml
+@@ -37,7 +37,6 @@
+     <feature name='misalignsse'/>
+     <feature name='mmx'/>
+     <feature name='mmxext'/>
+-    <feature name='monitor'/>
+     <feature name='movbe'/>
+     <feature name='msr'/>
+     <feature name='mtrr'/>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-guest.xml
+@@ -2,6 +2,7 @@
+   <model fallback='forbid'>EPYC-Rome</model>
+   <vendor>AMD</vendor>
+   <feature policy='require' name='ht'/>
++  <feature policy='require' name='monitor'/>
+   <feature policy='require' name='osxsave'/>
+   <feature policy='require' name='cmt'/>
+   <feature policy='require' name='xsaves'/>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-host.xml
+@@ -3,6 +3,7 @@
+   <model>EPYC-Rome</model>
+   <vendor>AMD</vendor>
+   <feature name='ht'/>
++  <feature name='monitor'/>
+   <feature name='osxsave'/>
+   <feature name='cmt'/>
+   <feature name='xsaves'/>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-json.xml
+@@ -17,5 +17,4 @@
+   <feature policy='require' name='skip-l1dfl-vmentry'/>
+   <feature policy='require' name='mds-no'/>
+   <feature policy='require' name='pschange-mc-no'/>
+-  <feature policy='disable' name='monitor'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-guest.xml
+@@ -2,6 +2,7 @@
+   <model fallback='forbid'>EPYC-Rome</model>
+   <vendor>AMD</vendor>
+   <feature policy='require' name='ht'/>
++  <feature policy='require' name='monitor'/>
+   <feature policy='require' name='osxsave'/>
+   <feature policy='require' name='cmt'/>
+   <feature policy='require' name='xsaves'/>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-host.xml
+@@ -3,6 +3,7 @@
+   <model>EPYC-Rome</model>
+   <vendor>AMD</vendor>
+   <feature name='ht'/>
++  <feature name='monitor'/>
+   <feature name='osxsave'/>
+   <feature name='cmt'/>
+   <feature name='xsaves'/>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-json.xml
+@@ -16,6 +16,5 @@
+   <feature policy='require' name='skip-l1dfl-vmentry'/>
+   <feature policy='require' name='mds-no'/>
+   <feature policy='require' name='pschange-mc-no'/>
+-  <feature policy='disable' name='monitor'/>
+   <feature policy='disable' name='amd-stibp'/>
+ </cpu>

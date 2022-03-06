@@ -1,0 +1,62 @@
+From e4116eaa44cb366b59f7fe98f4b88d04c04970ad Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 18 Sep 2020 17:54:14 +0200
+Subject: [PATCH] rpc: require write acl for guest agent in
+ virDomainInterfaceAddresses
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+CVE-2020-25637
+
+Add a requirement for domain:write if source is set to
+VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT.
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reported-by: Ilja Van Sprundel <ivansprundel@ioactive.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+
+Backport-Note: 4494b9b9 "lxc: Add support to lxcDomainInterfaceAddresses() function" only present in >6.1.0
+Origin: backport, https://libvirt.org/git/?p=libvirt.git;a=commit;h=e4116eaa
+Bug-SF: SF00309456
+Last-Update: 2021-04-27
+
+---
+ src/libxl/libxl_driver.c     | 2 +-
+ src/lxc/lxc_driver.c         | 2 +-
+ src/qemu/qemu_driver.c       | 2 +-
+ src/remote/remote_protocol.x | 1 +
+ 4 files changed, 4 insertions(+), 3 deletions(-)
+
+--- a/src/libxl/libxl_driver.c
++++ b/src/libxl/libxl_driver.c
+@@ -6318,7 +6318,7 @@ libxlDomainInterfaceAddresses(virDomainP
+     if (!(vm = libxlDomObjFromDomain(dom)))
+         goto cleanup;
+ 
+-    if (virDomainInterfaceAddressesEnsureACL(dom->conn, vm->def) < 0)
++    if (virDomainInterfaceAddressesEnsureACL(dom->conn, vm->def, source) < 0)
+         goto cleanup;
+ 
+     if (virDomainObjCheckActive(vm) < 0)
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -22013,7 +22013,7 @@ qemuDomainInterfaceAddresses(virDomainPt
+     if (!(vm = qemuDomainObjFromDomain(dom)))
+         goto cleanup;
+ 
+-    if (virDomainInterfaceAddressesEnsureACL(dom->conn, vm->def) < 0)
++    if (virDomainInterfaceAddressesEnsureACL(dom->conn, vm->def, source) < 0)
+         goto cleanup;
+ 
+     if (virDomainObjCheckActive(vm) < 0)
+--- a/src/remote/remote_protocol.x
++++ b/src/remote/remote_protocol.x
+@@ -6211,6 +6211,7 @@ enum remote_procedure {
+     /**
+      * @generate: none
+      * @acl: domain:read
++     * @acl: domain:write::source:VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT
+      */
+     REMOTE_PROC_DOMAIN_INTERFACE_ADDRESSES = 353,
+ 

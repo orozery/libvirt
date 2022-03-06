@@ -1,0 +1,42 @@
+From 43773d48e6e12248bb7fc598abbbf43ab7e68e3f Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Sat, 22 Feb 2020 12:44:45 +0100
+Subject: [PATCH] testutilsxen: error out on initialization failure
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+libxlDriverConfigNew can possibly fail on wrong
+firmware values (unlikely) or on failure to create
+the log directory (possible if you're debugging
+tests with VIR_FILE_ACCESS)
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Fixes: 4a4132b4625778cf80acb9c92d06351b44468ac3
+Reviewed-by: Jim Fehlig <jfehlig@suse.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=43773d48e6
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ tests/testutilsxen.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/tests/testutilsxen.c b/tests/testutilsxen.c
+index b73c79581d..76da33826c 100644
+--- a/tests/testutilsxen.c
++++ b/tests/testutilsxen.c
+@@ -94,7 +94,8 @@ libxlDriverPrivatePtr testXLInitDriver(void)
+         return NULL;
+     }
+ 
+-    driver->config = libxlDriverConfigNew();
++    if (!(driver->config = libxlDriverConfigNew()))
++        return NULL;
+ 
+     driver->config->caps = testXLInitCaps();
+ 
+-- 
+2.25.1
+

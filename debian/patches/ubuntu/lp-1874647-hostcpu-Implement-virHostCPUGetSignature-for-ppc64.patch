@@ -1,0 +1,140 @@
+From 2a68ceaa6e2e45bbb05ffa15b4cdf45cba38958f Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 2 Apr 2020 22:35:30 +0200
+Subject: [PATCH] hostcpu: Implement virHostCPUGetSignature for ppc64
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=2a68ceaa6e
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1874647
+Last-Update: 2020-08-31
+
+---
+ src/util/virhostcpu.c                         | 58 ++++++++++++-------
+ .../linux-ppc64-deconf-cpus.signature         |  1 +
+ .../linux-ppc64-subcores1.signature           |  1 +
+ .../linux-ppc64-subcores2.signature           |  1 +
+ .../linux-ppc64-subcores3.signature           |  1 +
+ 5 files changed, 41 insertions(+), 21 deletions(-)
+ create mode 100644 tests/virhostcpudata/linux-ppc64-deconf-cpus.signature
+ create mode 100644 tests/virhostcpudata/linux-ppc64-subcores1.signature
+ create mode 100644 tests/virhostcpudata/linux-ppc64-subcores2.signature
+ create mode 100644 tests/virhostcpudata/linux-ppc64-subcores3.signature
+
+diff --git a/src/util/virhostcpu.c b/src/util/virhostcpu.c
+index 15b79f7090..a25a4fa333 100644
+--- a/src/util/virhostcpu.c
++++ b/src/util/virhostcpu.c
+@@ -1429,8 +1429,9 @@ virHostCPUReadSignature(virArch arch,
+     g_autofree char *family = NULL;
+     g_autofree char *model = NULL;
+     g_autofree char *stepping = NULL;
++    g_autofree char *revision = NULL;
+ 
+-    if (!ARCH_IS_X86(arch))
++    if (!ARCH_IS_X86(arch) && !ARCH_IS_PPC64(arch))
+         return 0;
+ 
+     while (fgets(line, lineLen, cpuinfo)) {
+@@ -1442,27 +1443,42 @@ virHostCPUReadSignature(virArch arch,
+         g_strstrip(parts[0]);
+         g_strstrip(parts[1]);
+ 
+-        if (STREQ(parts[0], "vendor_id")) {
+-            if (!vendor)
+-                vendor = g_steal_pointer(&parts[1]);
+-        } else if (STREQ(parts[0], "model name")) {
+-            if (!name)
+-                name = g_steal_pointer(&parts[1]);
+-        } else if (STREQ(parts[0], "cpu family")) {
+-            if (!family)
+-                family = g_steal_pointer(&parts[1]);
+-        } else if (STREQ(parts[0], "model")) {
+-            if (!model)
+-                model = g_steal_pointer(&parts[1]);
+-        } else if (STREQ(parts[0], "stepping")) {
+-            if (!stepping)
+-                stepping = g_steal_pointer(&parts[1]);
+-        }
++        if (ARCH_IS_X86(arch)) {
++            if (STREQ(parts[0], "vendor_id")) {
++                if (!vendor)
++                    vendor = g_steal_pointer(&parts[1]);
++            } else if (STREQ(parts[0], "model name")) {
++                if (!name)
++                    name = g_steal_pointer(&parts[1]);
++            } else if (STREQ(parts[0], "cpu family")) {
++                if (!family)
++                    family = g_steal_pointer(&parts[1]);
++            } else if (STREQ(parts[0], "model")) {
++                if (!model)
++                    model = g_steal_pointer(&parts[1]);
++            } else if (STREQ(parts[0], "stepping")) {
++                if (!stepping)
++                    stepping = g_steal_pointer(&parts[1]);
++            }
+ 
+-        if (vendor && name && family && model && stepping) {
+-            *signature = g_strdup_printf("%s, %s, family: %s, model: %s, stepping: %s",
+-                                         vendor, name, family, model, stepping);
+-            return 0;
++            if (vendor && name && family && model && stepping) {
++                *signature = g_strdup_printf("%s, %s, family: %s, model: %s, stepping: %s",
++                                             vendor, name, family, model, stepping);
++                return 0;
++            }
++        } else if (ARCH_IS_PPC64(arch)) {
++            if (STREQ(parts[0], "cpu")) {
++                if (!name)
++                    name = g_steal_pointer(&parts[1]);
++            } else if (STREQ(parts[0], "revision")) {
++                if (!revision)
++                    revision = g_steal_pointer(&parts[1]);
++            }
++
++            if (name && revision) {
++                *signature = g_strdup_printf("%s, rev %s", name, revision);
++                return 0;
++            }
+         }
+     }
+ 
+diff --git a/tests/virhostcpudata/linux-ppc64-deconf-cpus.signature b/tests/virhostcpudata/linux-ppc64-deconf-cpus.signature
+new file mode 100644
+index 0000000000..7adf19db2f
+--- /dev/null
++++ b/tests/virhostcpudata/linux-ppc64-deconf-cpus.signature
+@@ -0,0 +1 @@
++POWER8E (raw), altivec supported, rev 2.1 (pvr 004b 0201)
+\ No newline at end of file
+diff --git a/tests/virhostcpudata/linux-ppc64-subcores1.signature b/tests/virhostcpudata/linux-ppc64-subcores1.signature
+new file mode 100644
+index 0000000000..7adf19db2f
+--- /dev/null
++++ b/tests/virhostcpudata/linux-ppc64-subcores1.signature
+@@ -0,0 +1 @@
++POWER8E (raw), altivec supported, rev 2.1 (pvr 004b 0201)
+\ No newline at end of file
+diff --git a/tests/virhostcpudata/linux-ppc64-subcores2.signature b/tests/virhostcpudata/linux-ppc64-subcores2.signature
+new file mode 100644
+index 0000000000..7adf19db2f
+--- /dev/null
++++ b/tests/virhostcpudata/linux-ppc64-subcores2.signature
+@@ -0,0 +1 @@
++POWER8E (raw), altivec supported, rev 2.1 (pvr 004b 0201)
+\ No newline at end of file
+diff --git a/tests/virhostcpudata/linux-ppc64-subcores3.signature b/tests/virhostcpudata/linux-ppc64-subcores3.signature
+new file mode 100644
+index 0000000000..7adf19db2f
+--- /dev/null
++++ b/tests/virhostcpudata/linux-ppc64-subcores3.signature
+@@ -0,0 +1 @@
++POWER8E (raw), altivec supported, rev 2.1 (pvr 004b 0201)
+\ No newline at end of file
+-- 
+2.28.0
+

@@ -1,0 +1,43 @@
+From 8efeeb59a6e76fa9515deb7d3d26ae570e0fb7a7 Mon Sep 17 00:00:00 2001
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 30 Jan 2020 14:56:05 +0100
+Subject: [PATCH] qemuMigrationCookieAddNBD: Use glib memory allocators
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=8efeeb59a6
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1929202
+Last-Update: 2021-07-20
+
+---
+ src/qemu/qemu_migration_cookie.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/qemu/qemu_migration_cookie.c b/src/qemu/qemu_migration_cookie.c
+index 73ae815818..1c3de13983 100644
+--- a/src/qemu/qemu_migration_cookie.c
++++ b/src/qemu/qemu_migration_cookie.c
+@@ -461,8 +461,7 @@ qemuMigrationCookieAddNBD(qemuMigrationCookiePtr mig,
+     /* It is not a bug if there already is a NBD data */
+     qemuMigrationCookieNBDFree(mig->nbd);
+ 
+-    if (VIR_ALLOC(mig->nbd) < 0)
+-        return -1;
++    mig->nbd = g_new0(qemuMigrationCookieNBD, 1);
+ 
+     mig->nbd->port = priv->nbdPort;
+     mig->flags |= QEMU_MIGRATION_COOKIE_NBD;
+@@ -470,8 +469,7 @@ qemuMigrationCookieAddNBD(qemuMigrationCookiePtr mig,
+     if (vm->def->ndisks == 0)
+         return 0;
+ 
+-    if (VIR_ALLOC_N(mig->nbd->disks, vm->def->ndisks) < 0)
+-        return -1;
++    mig->nbd->disks = g_new0(struct qemuMigrationCookieNBDDisk, vm->def->ndisks);
+     mig->nbd->ndisks = 0;
+ 
+     for (i = 0; i < vm->def->ndisks; i++) {
+-- 
+2.32.0
+

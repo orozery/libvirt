@@ -1,0 +1,66 @@
+From bc62d7a49141d745b19d066c07599f228020a0b3 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 11:30:24 +0100
+Subject: [PATCH] cpu_x86: Use g_auto* in virCPUx86Compare
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=bc62d7a491
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 7a59680516..feefd6cfee 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -1847,32 +1847,30 @@ virCPUx86Compare(virCPUDefPtr host,
+                  virCPUDefPtr cpu,
+                  bool failIncompatible)
+ {
+-    virCPUCompareResult ret = VIR_CPU_COMPARE_ERROR;
+-    char *message = NULL;
++    virCPUCompareResult ret;
++    g_autofree char *message = NULL;
+ 
+     if (!host || !host->model) {
+         if (failIncompatible) {
+             virReportError(VIR_ERR_CPU_INCOMPATIBLE, "%s",
+                            _("unknown host CPU"));
+-        } else {
+-            VIR_WARN("unknown host CPU");
+-            ret = VIR_CPU_COMPARE_INCOMPATIBLE;
++            return VIR_CPU_COMPARE_ERROR;
+         }
+-        goto cleanup;
++
++        VIR_WARN("unknown host CPU");
++        return VIR_CPU_COMPARE_INCOMPATIBLE;
+     }
+ 
+     ret = x86Compute(host, cpu, NULL, &message);
+ 
+     if (ret == VIR_CPU_COMPARE_INCOMPATIBLE && failIncompatible) {
+-        ret = VIR_CPU_COMPARE_ERROR;
+         if (message)
+             virReportError(VIR_ERR_CPU_INCOMPATIBLE, "%s", message);
+         else
+             virReportError(VIR_ERR_CPU_INCOMPATIBLE, NULL);
++        return VIR_CPU_COMPARE_ERROR;
+     }
+ 
+- cleanup:
+-    VIR_FREE(message);
+     return ret;
+ }
+ 
+-- 
+2.31.1
+

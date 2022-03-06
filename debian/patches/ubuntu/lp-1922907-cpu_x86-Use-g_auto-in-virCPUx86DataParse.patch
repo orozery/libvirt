@@ -1,0 +1,84 @@
+From c1532711dda6db27c7f6fa7d86ab5ec5d2ab2224 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 10:32:47 +0100
+Subject: [PATCH] cpu_x86: Use g_auto* in virCPUx86DataParse
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=c1532711dd
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 23 ++++++++---------------
+ 1 file changed, 8 insertions(+), 15 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index c41c7da594..34b0087857 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -1636,8 +1636,8 @@ virCPUx86DataFormat(const virCPUData *data)
+ static virCPUDataPtr
+ virCPUx86DataParse(xmlXPathContextPtr ctxt)
+ {
+-    xmlNodePtr *nodes = NULL;
+-    virCPUDataPtr cpuData = NULL;
++    g_autofree xmlNodePtr *nodes = NULL;
++    g_autoptr(virCPUData) cpuData = NULL;
+     virCPUx86DataItem item;
+     size_t i;
+     int n;
+@@ -1646,11 +1646,11 @@ virCPUx86DataParse(xmlXPathContextPtr ctxt)
+     if (n <= 0) {
+         virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                        _("no x86 CPU data found"));
+-        goto error;
++        return NULL;
+     }
+ 
+     if (!(cpuData = virCPUDataNew(VIR_ARCH_X86_64)))
+-        goto error;
++        return NULL;
+ 
+     for (i = 0; i < n; i++) {
+         ctxt->node = nodes[i];
+@@ -1658,28 +1658,21 @@ virCPUx86DataParse(xmlXPathContextPtr ctxt)
+             if (x86ParseCPUID(ctxt, &item) < 0) {
+                 virReportError(VIR_ERR_INTERNAL_ERROR,
+                                _("failed to parse cpuid[%zu]"), i);
+-                goto error;
++                return NULL;
+             }
+         } else {
+             if (x86ParseMSR(ctxt, &item) < 0) {
+                 virReportError(VIR_ERR_INTERNAL_ERROR,
+                                _("failed to parse msr[%zu]"), i);
+-                goto error;
++                return NULL;
+             }
+         }
+ 
+         if (virCPUx86DataAdd(cpuData, &item) < 0)
+-            goto error;
++            return NULL;
+     }
+ 
+- cleanup:
+-    VIR_FREE(nodes);
+-    return cpuData;
+-
+- error:
+-    virCPUx86DataFree(cpuData);
+-    cpuData = NULL;
+-    goto cleanup;
++    return g_steal_pointer(&cpuData);
+ }
+ 
+ 
+-- 
+2.31.1
+

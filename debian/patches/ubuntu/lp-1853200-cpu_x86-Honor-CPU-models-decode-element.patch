@@ -1,0 +1,59 @@
+From 31cafe4f441dbe621494b281db03a474911c27d8 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 18 Mar 2020 11:13:21 +0100
+Subject: [PATCH] cpu_x86: Honor CPU models' <decode> element
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=7cd896ef31
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1853200
+Last-Update: 2020-03-23
+
+---
+ src/cpu/cpu_x86.c | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 366337ef57..ce15bb0454 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -2044,10 +2044,23 @@ x86DecodeUseCandidate(virCPUx86ModelPtr current,
+                       virCPUx86ModelPtr candidate,
+                       virCPUDefPtr cpuCandidate,
+                       uint32_t signature,
+-                      const char *preferred,
+-                      bool checkPolicy)
++                      const char *preferred)
+ {
+-    if (checkPolicy) {
++    if (cpuCandidate->type == VIR_CPU_TYPE_HOST &&
++        !candidate->decodeHost) {
++        VIR_DEBUG("%s is not supposed to be used for host CPU definition",
++                  cpuCandidate->model);
++        return 0;
++    }
++
++    if (cpuCandidate->type == VIR_CPU_TYPE_GUEST &&
++        !candidate->decodeGuest) {
++        VIR_DEBUG("%s is not supposed to be used for guest CPU definition",
++                  cpuCandidate->model);
++        return 0;
++    }
++
++    if (cpuCandidate->type == VIR_CPU_TYPE_HOST) {
+         size_t i;
+         for (i = 0; i < cpuCandidate->nfeatures; i++) {
+             if (cpuCandidate->features[i].policy == VIR_CPU_FEATURE_DISABLE)
+@@ -2209,8 +2222,7 @@ x86Decode(virCPUDefPtr cpu,
+ 
+         if ((rc = x86DecodeUseCandidate(model, cpuModel,
+                                         candidate, cpuCandidate,
+-                                        signature, preferred,
+-                                        cpu->type == VIR_CPU_TYPE_HOST))) {
++                                        signature, preferred))) {
+             virCPUDefFree(cpuModel);
+             cpuModel = cpuCandidate;
+             model = candidate;
+-- 
+2.25.1
+

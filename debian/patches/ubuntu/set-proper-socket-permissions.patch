@@ -1,0 +1,17 @@
+Description: set appropriate permissions on socket created by systemd.
+Author: Marc Deslauriers <marc.deslauriers@canonical.com>
+Forwarded: no, Ubuntu-specific defaults
+
+--- a/src/remote/libvirtd.socket.in
++++ b/src/remote/libvirtd.socket.in
+@@ -8,7 +8,9 @@ Before=@service@.service
+ # when using systemd version < 227
+ ListenStream=@runstatedir@/libvirt/@sockprefix@-sock
+ Service=@service@.service
+-SocketMode=0666
++SocketMode=0660
++SocketUser=root
++SocketGroup=libvirt
+ 
+ [Install]
+ WantedBy=sockets.target

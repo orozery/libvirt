@@ -1,0 +1,52 @@
+From 0fc05f2fe0e2d144c94b723836b737a6ea3227c0 Mon Sep 17 00:00:00 2001
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Mon, 20 Jan 2020 13:02:58 +0100
+Subject: [PATCH 1/5] qemu: block: Don't skip creation of 'luks' formatted
+ images
+
+libvirt treats 'luks' images as raw+encryption. The logic in
+qemuBlockStorageSourceCreateFormat skipped the creation if the requested
+image was raw but didn't take into account the encryption.
+
+This manifested itself e.g. when attempting to do a virsh blockcopy with
+the following XML:
+
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='raw'/>
+      <source file='/tmp/enccpy'>
+        <encryption format='luks'>
+          <secret type='passphrase' uuid='0a81f5b2-8403-7b23-c8d6-21ccc2f80d6f'/>
+        </encryption>
+      </source>
+    </disk>
+
+Where qemu would report the following error:
+
+ unable to execute QEMU command 'blockdev-add': Volume is not in LUKS format
+
+rather than actually formatting the image first.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Eric Blake <eblake@redhat.com>
+(cherry picked from commit f4e7c792d58cbd7318fc30519c551e4fe0cd98de)
+---
+ src/qemu/qemu_block.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_block.c b/src/qemu/qemu_block.c
+index eab21bc107..22f03da485 100644
+--- a/src/qemu/qemu_block.c
++++ b/src/qemu/qemu_block.c
+@@ -2479,7 +2479,8 @@ qemuBlockStorageSourceCreateFormat(virDomainObjPtr vm,
+     g_autoptr(virJSONValue) createformatprops = NULL;
+     int ret;
+ 
+-    if (src->format == VIR_STORAGE_FILE_RAW)
++    if (src->format == VIR_STORAGE_FILE_RAW &&
++        !src->encryption)
+         return 0;
+ 
+     if (qemuBlockStorageSourceCreateGetFormatProps(src, backingStore,
+-- 
+2.30.0
+

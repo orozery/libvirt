@@ -1,0 +1,66 @@
+From 247e115e2753bde7957cc07a20d5a48a8a6632b0 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 14:49:57 +0100
+Subject: [PATCH] cpu_x86: Use glib allocation for virCPUx86Map
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=247e115e27
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 7bad9dbb76..51c2a0ea36 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -1566,23 +1566,24 @@ x86MapFree(virCPUx86MapPtr map)
+ 
+     for (i = 0; i < map->nfeatures; i++)
+         x86FeatureFree(map->features[i]);
+-    VIR_FREE(map->features);
++    g_free(map->features);
+ 
+     for (i = 0; i < map->nmodels; i++)
+         x86ModelFree(map->models[i]);
+-    VIR_FREE(map->models);
++    g_free(map->models);
+ 
+     for (i = 0; i < map->nvendors; i++)
+         x86VendorFree(map->vendors[i]);
+-    VIR_FREE(map->vendors);
++    g_free(map->vendors);
+ 
+     /* migrate_blockers only points to the features from map->features list,
+      * which were already freed above
+      */
+-    VIR_FREE(map->migrate_blockers);
++    g_free(map->migrate_blockers);
+ 
+-    VIR_FREE(map);
++    g_free(map);
+ }
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(virCPUx86Map, x86MapFree);
+ 
+ 
+ static virCPUx86MapPtr
+@@ -1590,8 +1591,7 @@ virCPUx86LoadMap(void)
+ {
+     virCPUx86MapPtr map;
+ 
+-    if (VIR_ALLOC(map) < 0)
+-        return NULL;
++    map = g_new0(virCPUx86Map, 1);
+ 
+     if (cpuMapLoad("x86", x86VendorParse, x86FeatureParse, x86ModelParse, map) < 0)
+         goto error;
+-- 
+2.31.1
+

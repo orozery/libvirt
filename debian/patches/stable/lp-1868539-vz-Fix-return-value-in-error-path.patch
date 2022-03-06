@@ -1,0 +1,49 @@
+From 2ab1a5534944f514528b32913e11ca9fd323feff Mon Sep 17 00:00:00 2001
+From: Rikard Falkeborn <rikard.falkeborn@gmail.com>
+Date: Sun, 23 Feb 2020 00:22:47 +0100
+Subject: [PATCH] vz: Fix return value in error path
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+If PrlVmDev_GetType(), PrlVmDev_GetIndex() or PrlVmCfg_GetBootDevCount()
+fails, return false to indicate error. Returning -1 would be interpreted
+as true when used in an if-statement.
+
+Fixes: 8c9252aa6d95247537da0939b54fdd2f31695e32
+Signed-off-by: Rikard Falkeborn <rikard.falkeborn@gmail.com>
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=2ab1a55349
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ src/vz/vz_sdk.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/vz/vz_sdk.c b/src/vz/vz_sdk.c
+index 877692aeba..2c68c7cb27 100644
+--- a/src/vz/vz_sdk.c
++++ b/src/vz/vz_sdk.c
+@@ -1609,13 +1609,13 @@ prlsdkInBootList(PRL_HANDLE sdkdom,
+     size_t i;
+ 
+     pret = PrlVmDev_GetType(sdktargetdev, &targetType);
+-    prlsdkCheckRetExit(pret, -1);
++    prlsdkCheckRetExit(pret, false);
+ 
+     pret = PrlVmDev_GetIndex(sdktargetdev, &targetIndex);
+-    prlsdkCheckRetExit(pret, -1);
++    prlsdkCheckRetExit(pret, false);
+ 
+     pret = PrlVmCfg_GetBootDevCount(sdkdom, &bootNum);
+-    prlsdkCheckRetExit(pret, -1);
++    prlsdkCheckRetExit(pret, false);
+ 
+     for (i = 0; i < bootNum; ++i) {
+         pret = PrlVmCfg_GetBootDev(sdkdom, i, &bootDev);
+-- 
+2.25.1
+

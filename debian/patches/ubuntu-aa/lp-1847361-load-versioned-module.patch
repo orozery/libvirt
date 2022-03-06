@@ -1,0 +1,44 @@
+Description: allow loading modules from /var/run
+ apparmor: qemu load old shared objects
+
+ On qemu upgrades the old .so files usually are replaced. But on the other
+ hand since a qemu process represents a guest instance it is usually kept
+ around.
+
+ That makes late addition of dynamic features e.g. 'hot-attach of a ceph
+ disk' fail by trying to load a new version of e.f. block-rbd.so into an
+ old still running qemu binary.
+
+ Qemu adds a fallback to also load modules from a versioned directory in the
+ temporary /var/run path. That way qemu is providing a way for packaging
+ to store modules of an upgraded qemu package as needed until the next reboot.
+
+ This change is allowing the qemu process access to these paths.
+
+ Background:
+ This is a continuation of a discussion at KVM Forum 2019 eventually
+ becoming [1] and recently this change is queued to get into qemu properly [2].
+
+ [1]: https://lists.gnu.org/archive/html/qemu-devel/2019-11/msg00005.html
+ [2]: https://lists.nongnu.org/archive/html/qemu-devel/2020-03/msg03313.html
+
+ Signed-off-by: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+
+Forwarded: yes, https://www.redhat.com/archives/libvir-list/2020-March/msg00486.html
+Author: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1847361
+Last-Update: 2020-03-13
+--- a/src/security/apparmor/libvirt-qemu
++++ b/src/security/apparmor/libvirt-qemu
+@@ -164,6 +164,11 @@
+   /usr/{lib,lib64}/qemu/*.so mr,
+   /usr/lib/@{multiarch}/qemu/*.so mr,
+ 
++  # let qemu load old shared objects after upgrades (LP: #1847361)
++  /{var/,}run/qemu/*/*.so mr,
++  # but explicitly deny with auditing writing to these files
++  audit deny /{var/,}run/qemu/*/*.so w,
++
+   # swtpm
+   /{usr/,}bin/swtpm rmix,
+   /usr/{lib,lib64}/libswtpm_libtpms.so mr,

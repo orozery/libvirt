@@ -1,0 +1,191 @@
+From 3e1d2c93a3edce65ce8cb589edb07e2f830c9c12 Mon Sep 17 00:00:00 2001
+Description: storage: add support for QCOW2 cluster_size option
+Author: Pavel Hrdina <phrdina@redhat.com>
+Origin: upstream, https://github.com/libvirt/libvirt/commit/3e1d2c93a3edce65ce8cb589edb07e2f830c9c12
+Bug: https://gitlab.com/libvirt/libvirt/-/issues/154
+Reviewed-by: Rafael David Tinoco <rafaeldtinoco@ubuntu.com>
+Last-Update: 2021-05-24
+
+storage: add support for QCOW2 cluster_size option
+
+The default value hard-coded in QEMU (64KiB) is not always the ideal.
+Having a possibility to set the cluster_size by user may in specific
+use-cases improve performance for QCOW2 images.
+
+QEMU internally has some limits, the value has to be between 512B and
+2048KiB and must by power of two, except when the image has Extended L2
+Entries the minimal value has to be 16KiB.
+
+Since qemu-img ensures the value is correct and the limit is not always
+the same libvirt will not duplicate any of these checks as the error
+message from qemu-img is good enough:
+
+    Cluster size must be a power of two between 512 and 2048k
+
+Resolves: https://gitlab.com/libvirt/libvirt/-/issues/154
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+---
+ docs/formatstorage.html.in                      |  6 ++++++
+ docs/schemas/storagecommon.rng                  |  6 ++++++
+ docs/schemas/storagevol.rng                     |  3 +++
+ src/conf/storage_conf.c                         | 12 ++++++++++++
+ src/storage/storage_util.c                      |  5 +++++
+ .../qcow2-clusterSize.argv                      |  6 ++++++
+ tests/storagevolxml2argvtest.c                  |  4 ++++
+ .../vol-qcow2-clusterSize.xml                   | 17 +++++++++++++++++
+ .../vol-qcow2-clusterSize.xml                   | 17 +++++++++++++++++
+ tests/storagevolxml2xmltest.c                   |  1 +
+ 10 files changed, 77 insertions(+)
+ create mode 100644 tests/storagevolxml2argvdata/qcow2-clusterSize.argv
+ create mode 100644 tests/storagevolxml2xmlin/vol-qcow2-clusterSize.xml
+ create mode 100644 tests/storagevolxml2xmlout/vol-qcow2-clusterSize.xml
+
+--- a/docs/formatstorage.html.in
++++ b/docs/formatstorage.html.in
+@@ -766,6 +766,7 @@
+   &lt;/encryption&gt;
+   &lt;compat&gt;1.1&lt;/compat&gt;
+   &lt;nocow/&gt;
++  &lt;clusterSize unit='KiB'&gt;64&lt;/clusterSize&gt;
+   &lt;features&gt;
+     &lt;lazy_refcounts/&gt;
+   &lt;/features&gt;
+@@ -842,6 +843,11 @@
+         the file image is used in VM. To create non-raw file images, it
+         requires QEMU version since 2.1. <span class="since">Since 1.2.7</span>
+       </dd>
++      <dt><code>clusterSize</code></dt>
++      <dd>Changes the qcow2 cluster size which can affect image file size
++        and performance.
++        <span class="since">Since 7.4.0</span>
++      </dd>
+       <dt><code>features</code></dt>
+       <dd>Format-specific features. Only used for <code>qcow2</code> now.
+         Valid sub-elements are:
+--- a/docs/schemas/storagecommon.rng
++++ b/docs/schemas/storagecommon.rng
+@@ -111,6 +111,12 @@
+     </element>
+   </define>
+ 
++  <define name="clusterSize">
++    <element name="clusterSize">
++      <ref name="scaledInteger"/>
++    </element>
++  </define>
++
+   <define name='compat'>
+     <element name='compat'>
+       <data type='string'>
+--- a/docs/schemas/storagevol.rng
++++ b/docs/schemas/storagevol.rng
+@@ -125,6 +125,9 @@
+           </element>
+         </optional>
+         <optional>
++          <ref name="clusterSize"/>
++        </optional>
++        <optional>
+           <ref name='fileFormatFeatures'/>
+         </optional>
+       </interleave>
+--- a/src/conf/storage_conf.c
++++ b/src/conf/storage_conf.c
+@@ -1397,6 +1397,13 @@
+     if (virXPathNode("./target/nocow", ctxt))
+         def->target.nocow = true;
+ 
++    if (virParseScaledValue("./target/clusterSize",
++                            "./target/clusterSize/@unit",
++                            ctxt, &def->target.clusterSize,
++                            1, ULLONG_MAX, false) < 0) {
++        return NULL;
++    }
++
+     if (virXPathNode("./target/features", ctxt)) {
+         if ((n = virXPathNodeSet("./target/features/*", ctxt, &nodes)) < 0)
+             return NULL;
+@@ -1562,6 +1569,11 @@
+ 
+     virBufferEscapeString(buf, "<compat>%s</compat>\n", def->compat);
+ 
++    if (def->clusterSize > 0) {
++        virBufferAsprintf(buf, "<clusterSize unit='B'>%llu</clusterSize>\n",
++                          def->clusterSize);
++    }
++
+     if (def->features) {
+         size_t i;
+         bool empty = virBitmapIsAllClear(def->features);
+--- a/src/storage/storage_util.c
++++ b/src/storage/storage_util.c
+@@ -693,6 +693,7 @@
+     const char *path;
+     unsigned long long size_arg;
+     unsigned long long allocation;
++    unsigned long long clusterSize;
+     bool encryption;
+     bool preallocate;
+     const char *compat;
+@@ -739,6 +740,9 @@
+     else if (info->format == VIR_STORAGE_FILE_QCOW2)
+         virBufferAddLit(&buf, "compat=0.10,");
+ 
++    if (info->clusterSize > 0)
++        virBufferAsprintf(&buf, "cluster_size=%llu,", info->clusterSize);
++
+     if (info->features && info->format == VIR_STORAGE_FILE_QCOW2) {
+         if (virBitmapIsBitSet(info->features,
+                               VIR_STORAGE_FILE_FEATURE_LAZY_REFCOUNTS)) {
+@@ -1093,6 +1097,7 @@
+         .compat = vol->target.compat,
+         .features = vol->target.features,
+         .nocow = vol->target.nocow,
++        .clusterSize = vol->target.clusterSize,
+         .secretAlias = NULL,
+     };
+     virStorageEncryptionPtr enc = vol->target.encryption;
+--- /dev/null
++++ b/tests/storagevolxml2argvdata/qcow2-clusterSize.argv
+@@ -0,0 +1,6 @@
++qemu-img \
++create \
++-f qcow2 \
++-o compat=0.10,cluster_size=131072 \
++/var/lib/libvirt/images/OtherDemo.img \
++5242880K
+--- a/tests/storagevolxml2argvtest.c
++++ b/tests/storagevolxml2argvtest.c
+@@ -238,6 +238,10 @@
+                  "pool-dir", "vol-qcow2-nocapacity-backing", NULL, NULL,
+                  "qcow2-nocapacity", 0);
+ 
++    DO_TEST("pool-dir", "vol-qcow2-clusterSize",
++            NULL, NULL,
++            "qcow2-clusterSize", 0);
++
+     DO_TEST("pool-dir", "vol-file-iso",
+             NULL, NULL,
+             "iso", 0);
+--- /dev/null
++++ b/tests/storagevolxml2xmlin/vol-qcow2-clusterSize.xml
+@@ -0,0 +1,17 @@
++<volume>
++  <name>OtherDemo.img</name>
++  <key>/var/lib/libvirt/images/OtherDemo.img</key>
++  <capacity unit="G">5</capacity>
++  <allocation>294912</allocation>
++  <target>
++    <path>/var/lib/libvirt/images/OtherDemo.img</path>
++    <format type='qcow2'/>
++    <permissions>
++      <mode>0644</mode>
++      <owner>0</owner>
++      <group>0</group>
++      <label>unconfined_u:object_r:virt_image_t:s0</label>
++    </permissions>
++    <clusterSize unit='KiB'>128</clusterSize>
++  </target>
++</volume>

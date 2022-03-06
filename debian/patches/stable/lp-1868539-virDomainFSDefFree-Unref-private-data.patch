@@ -1,0 +1,52 @@
+From d8b4f70e1e36772ef82dbe0f0706fa7845583e6c Mon Sep 17 00:00:00 2001
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 21 Feb 2020 08:27:50 +0100
+Subject: [PATCH] virDomainFSDefFree: Unref private data
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The privateData object is allocated in virDomainFSDefNew() but
+never unref'd.
+
+==119642== 480 bytes in 20 blocks are definitely lost in loss record 656 of 671
+==119642==    at 0x4837B86: calloc (vg_replace_malloc.c:762)
+==119642==    by 0x57806A0: g_malloc0 (in /usr/lib64/libglib-2.0.so.0.6000.7)
+==119642==    by 0x4AE7392: virAllocVar (viralloc.c:331)
+==119642==    by 0x4B64395: virObjectNew (virobject.c:241)
+==119642==    by 0x48F1464: qemuDomainFSPrivateNew (qemu_domain.c:1427)
+==119642==    by 0x4BBF004: virDomainFSDefNew (domain_conf.c:2307)
+==119642==    by 0x4BD859A: virDomainFSDefParseXML (domain_conf.c:11217)
+==119642==    by 0x4BF9DD1: virDomainDefParseXML (domain_conf.c:21179)
+==119642==    by 0x4BFCD5B: virDomainDefParseNode (domain_conf.c:21943)
+==119642==    by 0x4BFCC36: virDomainDefParse (domain_conf.c:21901)
+==119642==    by 0x4BFCCCB: virDomainDefParseFile (domain_conf.c:21924)
+==119642==    by 0x114A9D: testCompareXMLToArgv (qemuxml2argvtest.c:452)
+
+Fixes: 5120577ed79f89e172e3deed534fa9b585f4701f
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=d8b4f70e1e
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ src/conf/domain_conf.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/conf/domain_conf.c b/src/conf/domain_conf.c
+index a2603f095e..bd2ca53f1d 100644
+--- a/src/conf/domain_conf.c
++++ b/src/conf/domain_conf.c
+@@ -2324,6 +2324,7 @@ void virDomainFSDefFree(virDomainFSDefPtr def)
+     VIR_FREE(def->dst);
+     virDomainDeviceInfoClear(&def->info);
+     VIR_FREE(def->virtio);
++    virObjectUnref(def->privateData);
+ 
+     VIR_FREE(def);
+ }
+-- 
+2.25.1
+

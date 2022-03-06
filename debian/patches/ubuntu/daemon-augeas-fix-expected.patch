@@ -1,0 +1,23 @@
+Description: Fix the expected augeas output for 'make check'
+ This never used to run for us because we never build-depended on
+ augeas-tools.
+Author: Serge Hallyn <serge.hallyn@ubuntu.com>
+Forwarded: no
+
+This is only needed in combination with
+ d/p/ubuntu/Allow-libvirt-group-to-access-the-socket.patch and makes the tests
+match the slightly different default configuration.
+
+--- a/src/remote/test_libvirtd.aug.in
++++ b/src/remote/test_libvirtd.aug.in
+@@ -11,10 +11,8 @@ module Test_@DAEMON_NAME@ =
+ @END@
+         { "unix_sock_group" = "libvirt" }
+         { "unix_sock_ro_perms" = "0777" }
+-        { "unix_sock_rw_perms" = "0770" }
+         { "unix_sock_admin_perms" = "0700" }
+         { "unix_sock_dir" = "@runstatedir@/libvirt" }
+-        { "auth_unix_ro" = "none" }
+         { "auth_unix_rw" = "none" }
+ @CUT_ENABLE_IP@
+         { "auth_tcp" = "sasl" }

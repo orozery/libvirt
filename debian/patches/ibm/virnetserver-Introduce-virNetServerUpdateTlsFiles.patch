@@ -1,0 +1,186 @@
+From 15d280fa97b041cc9b847e5540ed51333c97fcc4 Mon Sep 17 00:00:00 2001
+From: Zhang Bo <oscar.zhangbo@huawei.com>
+Date: Sat, 7 Mar 2020 19:31:00 +0800
+Subject: [PATCH] virnetserver: Introduce virNetServerUpdateTlsFiles
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add an API to update server's tls context.
+
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+Signed-off-by: Zhang Bo <oscar.zhangbo@huawei.com>
+Signed-off-by: Wu Qingliang <wuqingliang4@huawei.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=15d280fa97
+Last-Update: 2022-02-17
+
+---
+ src/libvirt_remote.syms    |  1 +
+ src/rpc/virnetserver.c     | 50 ++++++++++++++++++++++++++++++++++++++
+ src/rpc/virnetserver.h     |  2 ++
+ src/rpc/virnettlscontext.c | 46 +++++++++++++++++++++++++++++++++++
+ src/rpc/virnettlscontext.h |  3 +++
+ 5 files changed, 102 insertions(+)
+
+diff --git a/src/libvirt_remote.syms b/src/libvirt_remote.syms
+index 0493467f46..0018a0c41d 100644
+--- a/src/libvirt_remote.syms
++++ b/src/libvirt_remote.syms
+@@ -137,6 +137,7 @@ virNetServerSetClientLimits;
+ virNetServerSetThreadPoolParameters;
+ virNetServerSetTLSContext;
+ virNetServerUpdateServices;
++virNetServerUpdateTlsFiles;
+ 
+ 
+ # rpc/virnetserverclient.h
+diff --git a/src/rpc/virnetserver.c b/src/rpc/virnetserver.c
+index 072ffdf5a3..242052754f 100644
+--- a/src/rpc/virnetserver.c
++++ b/src/rpc/virnetserver.c
+@@ -28,6 +28,7 @@
+ #include "virthread.h"
+ #include "virthreadpool.h"
+ #include "virstring.h"
++#include "virutil.h"
+ 
+ #define VIR_FROM_THIS VIR_FROM_RPC
+ 
+@@ -1205,3 +1206,52 @@ virNetServerSetClientLimits(virNetServerPtr srv,
+     virObjectUnlock(srv);
+     return ret;
+ }
++
++static virNetTLSContextPtr
++virNetServerGetTLSContext(virNetServerPtr srv)
++{
++    size_t i;
++    virNetTLSContextPtr ctxt = NULL;
++    virNetServerServicePtr svc = NULL;
++
++    /* find svcTLS from srv, get svcTLS->tls */
++    for (i = 0; i < srv->nservices; i++) {
++        svc = srv->services[i];
++        ctxt = virNetServerServiceGetTLSContext(svc);
++        if (ctxt != NULL)
++            break;
++    }
++
++    return ctxt;
++}
++
++int
++virNetServerUpdateTlsFiles(virNetServerPtr srv)
++{
++    int ret = -1;
++    virNetTLSContextPtr ctxt = NULL;
++    bool privileged = geteuid() == 0 ? true : false;
++
++    ctxt = virNetServerGetTLSContext(srv);
++    if (!ctxt) {
++        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
++                       _("no tls service found, unable to update tls files"));
++        return -1;
++    }
++
++    virObjectLock(srv);
++    virObjectLock(ctxt);
++
++    if (virNetTLSContextReloadForServer(ctxt, !privileged)) {
++        VIR_DEBUG("failed to reload server's tls context");
++        goto cleanup;
++    }
++
++    VIR_DEBUG("update tls files success");
++    ret = 0;
++
++ cleanup:
++    virObjectUnlock(ctxt);
++    virObjectUnlock(srv);
++    return ret;
++}
+diff --git a/src/rpc/virnetserver.h b/src/rpc/virnetserver.h
+index 260c99b22d..1c6a2efb6c 100644
+--- a/src/rpc/virnetserver.h
++++ b/src/rpc/virnetserver.h
+@@ -133,3 +133,5 @@ size_t virNetServerGetCurrentUnauthClients(virNetServerPtr srv);
+ int virNetServerSetClientLimits(virNetServerPtr srv,
+                                 long long int maxClients,
+                                 long long int maxClientsUnauth);
++
++int virNetServerUpdateTlsFiles(virNetServerPtr srv);
+diff --git a/src/rpc/virnettlscontext.c b/src/rpc/virnettlscontext.c
+index 44f0dfce77..02c17124a1 100644
+--- a/src/rpc/virnettlscontext.c
++++ b/src/rpc/virnettlscontext.c
+@@ -919,6 +919,52 @@ virNetTLSContextPtr virNetTLSContextNewServer(const char *cacert,
+ }
+ 
+ 
++int virNetTLSContextReloadForServer(virNetTLSContextPtr ctxt,
++                                    bool tryUserPkiPath)
++{
++    gnutls_certificate_credentials_t x509credBak;
++    int err;
++    char *cacert = NULL;
++    char *cacrl = NULL;
++    char *cert = NULL;
++    char *key = NULL;
++
++    x509credBak = ctxt->x509cred;
++    ctxt->x509cred = NULL;
++
++    if (virNetTLSContextLocateCredentials(NULL, tryUserPkiPath, true,
++                                          &cacert, &cacrl, &cert, &key))
++        goto error;
++
++    err = gnutls_certificate_allocate_credentials(&ctxt->x509cred);
++    if (err) {
++        virReportError(VIR_ERR_SYSTEM_ERROR,
++                       _("Unable to allocate x509 credentials: %s"),
++                       gnutls_strerror(err));
++        goto error;
++    }
++
++    if (virNetTLSContextSanityCheckCredentials(true, cacert, cert))
++        goto error;
++
++    if (virNetTLSContextLoadCredentials(ctxt, true, cacert, cacrl, cert, key))
++        goto error;
++
++    gnutls_certificate_set_dh_params(ctxt->x509cred,
++                                     ctxt->dhParams);
++
++    gnutls_certificate_free_credentials(x509credBak);
++
++    return 0;
++
++ error:
++    if (ctxt->x509cred)
++        gnutls_certificate_free_credentials(ctxt->x509cred);
++    ctxt->x509cred = x509credBak;
++    return -1;
++}
++
++
+ virNetTLSContextPtr virNetTLSContextNewClient(const char *cacert,
+                                               const char *cacrl,
+                                               const char *cert,
+diff --git a/src/rpc/virnettlscontext.h b/src/rpc/virnettlscontext.h
+index f3273bc26a..fe885aed9a 100644
+--- a/src/rpc/virnettlscontext.h
++++ b/src/rpc/virnettlscontext.h
+@@ -62,6 +62,9 @@ virNetTLSContextPtr virNetTLSContextNewClient(const char *cacert,
+                                               bool sanityCheckCert,
+                                               bool requireValidCert);
+ 
++int virNetTLSContextReloadForServer(virNetTLSContextPtr ctxt,
++                                    bool tryUserPkiPath);
++
+ int virNetTLSContextCheckCertificate(virNetTLSContextPtr ctxt,
+                                      virNetTLSSessionPtr sess);
+ 
+-- 
+2.35.0
+

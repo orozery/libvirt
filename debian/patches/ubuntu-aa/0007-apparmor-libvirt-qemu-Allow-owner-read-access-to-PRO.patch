@@ -1,0 +1,28 @@
+From 6beb6d41a87fae5499e12034233e5c8def1f56da Mon Sep 17 00:00:00 2001
+From: Stefan Bader <stefan.bader@canonical.com>
+Date: Tue, 23 May 2017 17:18:39 +0200
+Subject: [PATCH 07/33] apparmor, libvirt-qemu: Allow owner read access to
+ @{PROC}/*/auxv
+
+Forwarded: no (part of continuous upstreaming effort)
+Signed-off-by: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Signed-off-by: Stefan Bader <stefan.bader@canonical.com>
+---
+ src/security/apparmor/libvirt-qemu | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/security/apparmor/libvirt-qemu b/src/security/apparmor/libvirt-qemu
+index 7e99eb4..597d282 100644
+--- a/src/security/apparmor/libvirt-qemu
++++ b/src/security/apparmor/libvirt-qemu
+@@ -30,6 +30,7 @@
+   # only modify its comm value or those in its thread group.
+   owner @{PROC}/@{pid}/task/@{tid}/comm rw,
+   @{PROC}/sys/kernel/cap_last_cap r,
++  owner @{PROC}/*/auxv r,
+   @{PROC}/sys/vm/overcommit_memory r,
+ 
+   # For hostdev access. The actual devices will be added dynamically
+-- 
+2.7.4
+

@@ -1,0 +1,368 @@
+From 736b8637f691242fd688cf726d22f79d0eb300d3 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 7 Oct 2020 17:35:15 +0200
+Subject: [PATCH] cputest: Update QEMU data for Ryzen 9 3900X
+
+The CPU should be identified as EPYC-Rome, but the QEMU binary used to
+gather the original test data did not support this model. Let's update
+the supported models to QEMU 5.1.0.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=736b8637f
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1887490
+Last-Update: 2020-10-14
+
+---
+ tests/cputest.c                               |   2 +-
+ ...6_64-cpuid-Ryzen-9-3900X-12-Core-guest.xml |  12 +-
+ ...86_64-cpuid-Ryzen-9-3900X-12-Core-json.xml |  12 +-
+ .../x86_64-cpuid-Ryzen-9-3900X-12-Core.json   | 203 ++++++++++++++++++
+ 4 files changed, 207 insertions(+), 22 deletions(-)
+
+diff --git a/tests/cputest.c b/tests/cputest.c
+index b3b143cbf1..bf5ce84aa7 100644
+--- a/tests/cputest.c
++++ b/tests/cputest.c
+@@ -1254,7 +1254,7 @@ mymain(void)
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Pentium-P6100", JSON_NONE);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Phenom-B95", JSON_HOST);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Ryzen-7-1800X-Eight-Core", JSON_HOST);
+-    DO_TEST_CPUID(VIR_ARCH_X86_64, "Ryzen-9-3900X-12-Core", JSON_MODELS_REQUIRED);
++    DO_TEST_CPUID(VIR_ARCH_X86_64, "Ryzen-9-3900X-12-Core", JSON_MODELS);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Xeon-5110", JSON_NONE);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Xeon-E3-1225-v5", JSON_MODELS);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Xeon-E3-1245-v5", JSON_MODELS);
+diff --git a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-guest.xml b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-guest.xml
+index 1320f65a58..cb2caab6f5 100644
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-guest.xml
+@@ -1,12 +1,9 @@
+ <cpu mode='custom' match='exact'>
+-  <model fallback='forbid'>EPYC-IBPB</model>
++  <model fallback='forbid'>EPYC-Rome</model>
+   <vendor>AMD</vendor>
+   <feature policy='require' name='ht'/>
+   <feature policy='require' name='osxsave'/>
+   <feature policy='require' name='cmt'/>
+-  <feature policy='require' name='clwb'/>
+-  <feature policy='require' name='umip'/>
+-  <feature policy='require' name='rdpid'/>
+   <feature policy='require' name='xsaves'/>
+   <feature policy='require' name='mbm_total'/>
+   <feature policy='require' name='mbm_local'/>
+@@ -17,18 +14,11 @@
+   <feature policy='require' name='wdt'/>
+   <feature policy='require' name='tce'/>
+   <feature policy='require' name='topoext'/>
+-  <feature policy='require' name='perfctr_core'/>
+   <feature policy='require' name='perfctr_nb'/>
+   <feature policy='require' name='invtsc'/>
+-  <feature policy='require' name='clzero'/>
+-  <feature policy='require' name='xsaveerptr'/>
+-  <feature policy='require' name='wbnoinvd'/>
+-  <feature policy='require' name='amd-stibp'/>
+   <feature policy='require' name='amd-ssbd'/>
+-  <feature policy='require' name='npt'/>
+   <feature policy='require' name='lbrv'/>
+   <feature policy='require' name='svm-lock'/>
+-  <feature policy='require' name='nrip-save'/>
+   <feature policy='require' name='tsc-scale'/>
+   <feature policy='require' name='vmcb-clean'/>
+   <feature policy='require' name='flushbyasid'/>
+diff --git a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-json.xml b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-json.xml
+index fba378e030..c6aa67b6d5 100644
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-json.xml
+@@ -1,29 +1,21 @@
+ <cpu mode='custom' match='exact'>
+-  <model fallback='forbid'>EPYC-IBPB</model>
++  <model fallback='forbid'>EPYC-Rome</model>
+   <vendor>AMD</vendor>
+   <feature policy='require' name='x2apic'/>
+   <feature policy='require' name='tsc-deadline'/>
+   <feature policy='require' name='hypervisor'/>
+   <feature policy='require' name='tsc_adjust'/>
+-  <feature policy='require' name='clwb'/>
+-  <feature policy='require' name='umip'/>
+-  <feature policy='require' name='rdpid'/>
+   <feature policy='require' name='stibp'/>
+   <feature policy='require' name='arch-capabilities'/>
+   <feature policy='require' name='ssbd'/>
+   <feature policy='require' name='xsaves'/>
+   <feature policy='require' name='cmp_legacy'/>
+-  <feature policy='require' name='perfctr_core'/>
+-  <feature policy='require' name='clzero'/>
+-  <feature policy='require' name='xsaveerptr'/>
+-  <feature policy='require' name='wbnoinvd'/>
+   <feature policy='require' name='amd-ssbd'/>
+   <feature policy='require' name='virt-ssbd'/>
+-  <feature policy='require' name='npt'/>
+-  <feature policy='require' name='nrip-save'/>
+   <feature policy='require' name='rdctl-no'/>
+   <feature policy='require' name='skip-l1dfl-vmentry'/>
+   <feature policy='require' name='mds-no'/>
+   <feature policy='require' name='pschange-mc-no'/>
+   <feature policy='disable' name='monitor'/>
++  <feature policy='disable' name='amd-stibp'/>
+ </cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core.json b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core.json
+index fbdf1a794a..07c0ba0b05 100644
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core.json
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core.json
+@@ -698,6 +698,28 @@
+       "static": false,
+       "migration-safe": true
+     },
++    {
++      "name": "Skylake-Server-v4",
++      "typename": "Skylake-Server-v4-x86_64-cpu",
++      "unavailable-features": [
++        "pcid",
++        "erms",
++        "invpcid",
++        "avx512f",
++        "avx512dq",
++        "avx512cd",
++        "avx512bw",
++        "avx512vl",
++        "pku",
++        "spec-ctrl",
++        "avx512f",
++        "avx512f",
++        "avx512f",
++        "pku"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
+     {
+       "name": "Skylake-Server-v3",
+       "typename": "Skylake-Server-v3-x86_64-cpu",
+@@ -1173,6 +1195,74 @@
+       "static": false,
+       "migration-safe": true
+     },
++    {
++      "name": "Icelake-Server-v4",
++      "typename": "Icelake-Server-v4-x86_64-cpu",
++      "unavailable-features": [
++        "pcid",
++        "erms",
++        "invpcid",
++        "avx512f",
++        "avx512dq",
++        "avx512ifma",
++        "avx512cd",
++        "avx512bw",
++        "avx512vl",
++        "avx512vbmi",
++        "pku",
++        "avx512vbmi2",
++        "gfni",
++        "vaes",
++        "vpclmulqdq",
++        "avx512vnni",
++        "avx512bitalg",
++        "avx512-vpopcntdq",
++        "la57",
++        "fsrm",
++        "spec-ctrl",
++        "avx512f",
++        "avx512f",
++        "avx512f",
++        "pku",
++        "ibrs-all",
++        "taa-no"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Icelake-Server-v3",
++      "typename": "Icelake-Server-v3-x86_64-cpu",
++      "unavailable-features": [
++        "pcid",
++        "erms",
++        "invpcid",
++        "avx512f",
++        "avx512dq",
++        "avx512cd",
++        "avx512bw",
++        "avx512vl",
++        "avx512vbmi",
++        "pku",
++        "avx512vbmi2",
++        "gfni",
++        "vaes",
++        "vpclmulqdq",
++        "avx512vnni",
++        "avx512bitalg",
++        "avx512-vpopcntdq",
++        "la57",
++        "spec-ctrl",
++        "avx512f",
++        "avx512f",
++        "avx512f",
++        "pku",
++        "ibrs-all",
++        "taa-no"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
+     {
+       "name": "Icelake-Server-v2",
+       "typename": "Icelake-Server-v2-x86_64-cpu",
+@@ -1501,6 +1591,13 @@
+       "static": false,
+       "migration-safe": true
+     },
++    {
++      "name": "EPYC-v3",
++      "typename": "EPYC-v3-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
+     {
+       "name": "EPYC-v2",
+       "typename": "EPYC-v2-x86_64-cpu",
+@@ -1515,6 +1612,21 @@
+       "static": false,
+       "migration-safe": true
+     },
++    {
++      "name": "EPYC-Rome-v1",
++      "typename": "EPYC-Rome-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "EPYC-Rome",
++      "typename": "EPYC-Rome-x86_64-cpu",
++      "unavailable-features": [],
++      "alias-of": "EPYC-Rome-v1",
++      "static": false,
++      "migration-safe": true
++    },
+     {
+       "name": "EPYC-IBPB",
+       "typename": "EPYC-IBPB-x86_64-cpu",
+@@ -1546,6 +1658,16 @@
+       "static": false,
+       "migration-safe": true
+     },
++    {
++      "name": "Denverton-v2",
++      "typename": "Denverton-v2-x86_64-cpu",
++      "unavailable-features": [
++        "erms",
++        "spec-ctrl"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
+     {
+       "name": "Denverton-v1",
+       "typename": "Denverton-v1-x86_64-cpu",
+@@ -1573,6 +1695,63 @@
+       "static": false,
+       "migration-safe": true
+     },
++    {
++      "name": "Cooperlake-v1",
++      "typename": "Cooperlake-v1-x86_64-cpu",
++      "unavailable-features": [
++        "pcid",
++        "hle",
++        "erms",
++        "invpcid",
++        "rtm",
++        "avx512f",
++        "avx512dq",
++        "avx512cd",
++        "avx512bw",
++        "avx512vl",
++        "pku",
++        "avx512vnni",
++        "spec-ctrl",
++        "avx512-bf16",
++        "avx512f",
++        "avx512f",
++        "avx512f",
++        "pku",
++        "ibrs-all",
++        "taa-no"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Cooperlake",
++      "typename": "Cooperlake-x86_64-cpu",
++      "unavailable-features": [
++        "pcid",
++        "hle",
++        "erms",
++        "invpcid",
++        "rtm",
++        "avx512f",
++        "avx512dq",
++        "avx512cd",
++        "avx512bw",
++        "avx512vl",
++        "pku",
++        "avx512vnni",
++        "spec-ctrl",
++        "avx512-bf16",
++        "avx512f",
++        "avx512f",
++        "avx512f",
++        "pku",
++        "ibrs-all",
++        "taa-no"
++      ],
++      "alias-of": "Cooperlake-v1",
++      "static": false,
++      "migration-safe": true
++    },
+     {
+       "name": "Conroe-v1",
+       "typename": "Conroe-v1-x86_64-cpu",
+@@ -1588,6 +1767,30 @@
+       "static": false,
+       "migration-safe": true
+     },
++    {
++      "name": "Cascadelake-Server-v4",
++      "typename": "Cascadelake-Server-v4-x86_64-cpu",
++      "unavailable-features": [
++        "pcid",
++        "erms",
++        "invpcid",
++        "avx512f",
++        "avx512dq",
++        "avx512cd",
++        "avx512bw",
++        "avx512vl",
++        "pku",
++        "avx512vnni",
++        "spec-ctrl",
++        "avx512f",
++        "avx512f",
++        "avx512f",
++        "pku",
++        "ibrs-all"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
+     {
+       "name": "Cascadelake-Server-v3",
+       "typename": "Cascadelake-Server-v3-x86_64-cpu",
+-- 
+2.28.0
+

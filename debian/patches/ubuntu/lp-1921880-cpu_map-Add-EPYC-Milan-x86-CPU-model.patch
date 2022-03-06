@@ -1,0 +1,129 @@
+From f321a4822e9fa6542e48a78611989ecd9acaa83a Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Mon, 1 Mar 2021 19:20:51 +0100
+Subject: [PATCH] cpu_map: Add EPYC-Milan x86 CPU model
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Introduced in QEMU 6.0.0 by 623972ceae091b31331ae4a1dc94fe5cbb891937
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Backport-Note: only whitespace damage
+Origin: backport, https://libvirt.org/git/?p=libvirt.git;a=commit;h=f321a482
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1921880
+Last-Update: 2021-04-07
+
+---
+ src/cpu_map/index.xml          |  1 +
+ src/cpu_map/x86_EPYC-Milan.xml | 92 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 93 insertions(+)
+ create mode 100644 src/cpu_map/x86_EPYC-Milan.xml
+
+--- /dev/null
++++ b/src/cpu_map/x86_EPYC-Milan.xml
+@@ -0,0 +1,92 @@
++<cpus>
++  <model name='EPYC-Milan'>
++    <decode host='on' guest='on'/>
++    <signature family='25' model='1'/>
++    <vendor name='AMD'/>
++    <feature name='3dnowprefetch'/>
++    <feature name='abm'/>
++    <feature name='adx'/>
++    <feature name='aes'/>
++    <feature name='amd-ssbd'/>
++    <feature name='amd-stibp'/>
++    <feature name='apic'/>
++    <feature name='arat'/>
++    <feature name='avx'/>
++    <feature name='avx2'/>
++    <feature name='bmi1'/>
++    <feature name='bmi2'/>
++    <feature name='clflush'/>
++    <feature name='clflushopt'/>
++    <feature name='clwb'/>
++    <feature name='clzero'/>
++    <feature name='cmov'/>
++    <feature name='cr8legacy'/>
++    <feature name='cx16'/>
++    <feature name='cx8'/>
++    <feature name='de'/>
++    <feature name='erms'/>
++    <feature name='f16c'/>
++    <feature name='fma'/>
++    <feature name='fpu'/>
++    <feature name='fsgsbase'/>
++    <feature name='fsrm'/>
++    <feature name='fxsr'/>
++    <feature name='fxsr_opt'/>
++    <feature name='ibpb'/>
++    <feature name='ibrs'/>
++    <feature name='invpcid'/>
++    <feature name='lahf_lm'/>
++    <feature name='lm'/>
++    <feature name='mca'/>
++    <feature name='mce'/>
++    <feature name='misalignsse'/>
++    <feature name='mmx'/>
++    <feature name='mmxext'/>
++    <feature name='movbe'/>
++    <feature name='msr'/>
++    <feature name='mtrr'/>
++    <feature name='npt'/>
++    <feature name='nrip-save'/>
++    <feature name='nx'/>
++    <feature name='osvw'/>
++    <feature name='pae'/>
++    <feature name='pat'/>
++    <feature name='pcid'/>
++    <feature name='pclmuldq'/>
++    <feature name='pdpe1gb'/>
++    <feature name='perfctr_core'/>
++    <feature name='pge'/>
++    <feature name='pku'/>
++    <feature name='pni'/>
++    <feature name='popcnt'/>
++    <feature name='pse'/>
++    <feature name='pse36'/>
++    <feature name='rdpid'/>
++    <feature name='rdrand'/>
++    <feature name='rdseed'/>
++    <feature name='rdtscp'/>
++    <feature name='sep'/>
++    <feature name='sha-ni'/>
++    <feature name='smap'/>
++    <feature name='smep'/>
++    <feature name='sse'/>
++    <feature name='sse2'/>
++    <feature name='sse4.1'/>
++    <feature name='sse4.2'/>
++    <feature name='sse4a'/>
++    <feature name='ssse3'/>
++    <feature name='svm'/>
++    <feature name='svme-addr-check'/>
++    <feature name='syscall'/>
++    <feature name='tsc'/>
++    <feature name='umip'/>
++    <feature name='vme'/>
++    <feature name='wbnoinvd'/>
++    <feature name='xgetbv1'/>
++    <feature name='xsave'/>
++    <feature name='xsavec'/>
++    <feature name='xsaveerptr'/>
++    <feature name='xsaveopt'/>
++    <feature name='xsaves'/>
++  </model>
++</cpus>
+--- a/src/cpu_map/index.xml
++++ b/src/cpu_map/index.xml
+@@ -66,6 +66,7 @@
+     <include filename="x86_EPYC.xml"/>
+     <include filename="x86_EPYC-IBPB.xml"/>
+     <include filename="x86_EPYC-Rome.xml"/>
++    <include filename='x86_EPYC-Milan.xml'/>
+ 
+     <!-- Hygon CPU models -->
+     <include filename="x86_Dhyana.xml"/>

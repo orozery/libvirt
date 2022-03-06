@@ -1,0 +1,325 @@
+From c76009313f8068c848cad6cb517daf42e6716bb9 Mon Sep 17 00:00:00 2001
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 24 Jan 2020 10:43:29 +0100
+Subject: [PATCH] qemu_capabilities: Rework domain caps cache
+
+Since v5.6.0-48-g270583ed98 we try to cache domain capabilities,
+i.e. store filled virDomainCaps in a hash table in virQEMUCaps
+for future use. However, there's a race condition in the way it's
+implemented. We use virQEMUCapsGetDomainCapsCache() to obtain the
+pointer to the hash table, then we search the hash table for
+cached data and if none is found the domcaps is constructed and
+put into the table. Problem is that this is all done without any
+locking, so if there are two threads trying to do the same, one
+will succeed and the other will fail inserting the data into the
+table.
+
+Also, the API looks a bit fishy - obtaining pointer to the hash
+table is dangerous.
+
+The solution is to use a mutex that guards the whole operation
+with the hash table. Then, the API can be changes to return
+virDomainCapsPtr directly.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1791790
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=c76009313f8068c848cad6cb517daf42e6716bb9
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1867460
+Last-Update: 2020-03-20
+
+---
+ src/qemu/qemu_capabilities.c | 122 +++++++++++++++++++++++++++++++++--
+ src/qemu/qemu_capabilities.h |  12 +++-
+ src/qemu/qemu_conf.c         |  65 +++----------------
+ 3 files changed, 136 insertions(+), 63 deletions(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 17b0134ab8..4d7008396e 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -598,6 +598,26 @@ struct _virQEMUCapsAccel {
+     qemuMonitorCPUDefsPtr cpuModels;
+ };
+ 
++
++typedef struct _virQEMUDomainCapsCache virQEMUDomainCapsCache;
++typedef virQEMUDomainCapsCache *virQEMUDomainCapsCachePtr;
++struct _virQEMUDomainCapsCache {
++    virObjectLockable parent;
++
++    virHashTablePtr cache;
++};
++
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(virQEMUDomainCapsCache, virObjectUnref);
++
++static virClassPtr virQEMUDomainCapsCacheClass;
++static void virQEMUDomainCapsCacheDispose(void *obj)
++{
++    virQEMUDomainCapsCachePtr cache = obj;
++
++    virHashFree(cache->cache);
++}
++
++
+ /*
+  * Update the XML parser/formatter when adding more
+  * information to this struct so that it gets cached
+@@ -629,7 +649,7 @@ struct _virQEMUCaps {
+ 
+     virArch arch;
+ 
+-    virHashTablePtr domCapsCache;
++    virQEMUDomainCapsCachePtr domCapsCache;
+ 
+     size_t ngicCapabilities;
+     virGICCapability *gicCapabilities;
+@@ -655,6 +675,9 @@ static int virQEMUCapsOnceInit(void)
+     if (!VIR_CLASS_NEW(virQEMUCaps, virClassForObject()))
+         return -1;
+ 
++    if (!(VIR_CLASS_NEW(virQEMUDomainCapsCache, virClassForObjectLockable())))
++        return -1;
++
+     return 0;
+ }
+ 
+@@ -1625,6 +1648,22 @@ int virQEMUCapsGetDefaultVersion(virCapsPtr caps,
+ }
+ 
+ 
++static virQEMUDomainCapsCachePtr
++virQEMUDomainCapsCacheNew(void)
++{
++    g_autoptr(virQEMUDomainCapsCache) cache = NULL;
++
++    if (virQEMUCapsInitialize() < 0)
++        return NULL;
++
++    if (!(cache = virObjectLockableNew(virQEMUDomainCapsCacheClass)))
++        return NULL;
++
++    if (!(cache->cache = virHashCreate(5, virObjectFreeHashData)))
++        return NULL;
++
++    return g_steal_pointer(&cache);
++}
+ 
+ 
+ virQEMUCapsPtr
+@@ -1642,7 +1681,7 @@ virQEMUCapsNew(void)
+     if (!(qemuCaps->flags = virBitmapNew(QEMU_CAPS_LAST)))
+         goto error;
+ 
+-    if (!(qemuCaps->domCapsCache = virHashCreate(5, virObjectFreeHashData)))
++    if (!(qemuCaps->domCapsCache = virQEMUDomainCapsCacheNew()))
+         goto error;
+ 
+     return qemuCaps;
+@@ -1832,7 +1871,7 @@ void virQEMUCapsDispose(void *obj)
+ {
+     virQEMUCapsPtr qemuCaps = obj;
+ 
+-    virHashFree(qemuCaps->domCapsCache);
++    virObjectUnref(qemuCaps->domCapsCache);
+     virBitmapFree(qemuCaps->flags);
+ 
+     VIR_FREE(qemuCaps->package);
+@@ -1992,9 +2031,82 @@ const char *virQEMUCapsGetPackage(virQEMUCapsPtr qemuCaps)
+ }
+ 
+ 
+-virHashTablePtr virQEMUCapsGetDomainCapsCache(virQEMUCapsPtr qemuCaps)
++struct virQEMUCapsSearchDomcapsData {
++    const char *path;
++    const char *machine;
++    virArch arch;
++    virDomainVirtType virttype;
++};
++
++
++static int
++virQEMUCapsSearchDomcaps(const void *payload,
++                         const void *name G_GNUC_UNUSED,
++                         const void *opaque)
+ {
+-    return qemuCaps->domCapsCache;
++    virDomainCapsPtr domCaps = (virDomainCapsPtr) payload;
++    struct virQEMUCapsSearchDomcapsData *data = (struct virQEMUCapsSearchDomcapsData *) opaque;
++
++    if (STREQ_NULLABLE(data->path, domCaps->path) &&
++        STREQ_NULLABLE(data->machine, domCaps->machine) &&
++        data->arch == domCaps->arch &&
++        data->virttype == domCaps->virttype)
++        return 1;
++
++    return 0;
++}
++
++
++virDomainCapsPtr
++virQEMUCapsGetDomainCapsCache(virQEMUCapsPtr qemuCaps,
++                              const char *machine,
++                              virArch arch,
++                              virDomainVirtType virttype,
++                              virArch hostarch,
++                              bool privileged,
++                              virFirmwarePtr *firmwares,
++                              size_t nfirmwares)
++{
++    virQEMUDomainCapsCachePtr cache = qemuCaps->domCapsCache;
++    virDomainCapsPtr domCaps = NULL;
++    const char *path = virQEMUCapsGetBinary(qemuCaps);
++    struct virQEMUCapsSearchDomcapsData data = {
++        .path = path,
++        .machine = machine,
++        .arch = arch,
++        .virttype = virttype,
++    };
++
++    virObjectLock(cache);
++
++    domCaps = virHashSearch(cache->cache, virQEMUCapsSearchDomcaps, &data, NULL);
++
++    if (!domCaps) {
++        g_autoptr(virDomainCaps) tempDomCaps = NULL;
++        g_autofree char *key = NULL;
++
++        /* hash miss, build new domcaps */
++        if (!(tempDomCaps = virDomainCapsNew(path, machine,
++                                             arch, virttype)))
++            goto cleanup;
++
++        if (virQEMUCapsFillDomainCaps(qemuCaps, hostarch, tempDomCaps,
++                                      privileged, firmwares, nfirmwares) < 0)
++            goto cleanup;
++
++        key = g_strdup_printf("%d:%d:%s:%s", arch, virttype,
++                              NULLSTR(machine), path);
++
++        if (virHashAddEntry(cache->cache, key, tempDomCaps) < 0)
++            goto cleanup;
++
++        domCaps = g_steal_pointer(&tempDomCaps);
++    }
++
++    virObjectRef(domCaps);
++ cleanup:
++    virObjectUnlock(cache);
++    return domCaps;
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index ebfdb4b981..e110805456 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -575,7 +575,17 @@ const char *virQEMUCapsGetBinary(virQEMUCapsPtr qemuCaps);
+ virArch virQEMUCapsGetArch(virQEMUCapsPtr qemuCaps);
+ unsigned int virQEMUCapsGetVersion(virQEMUCapsPtr qemuCaps);
+ const char *virQEMUCapsGetPackage(virQEMUCapsPtr qemuCaps);
+-virHashTablePtr virQEMUCapsGetDomainCapsCache(virQEMUCapsPtr qemuCaps);
++
++virDomainCapsPtr
++virQEMUCapsGetDomainCapsCache(virQEMUCapsPtr qemuCaps,
++                              const char *machine,
++                              virArch arch,
++                              virDomainVirtType virttype,
++                              virArch hostarch,
++                              bool privileged,
++                              virFirmwarePtr *firmwares,
++                              size_t nfirmwares);
++
+ unsigned int virQEMUCapsGetKVMVersion(virQEMUCapsPtr qemuCaps);
+ int virQEMUCapsAddCPUDefinitions(virQEMUCapsPtr qemuCaps,
+                                  virDomainVirtType type,
+diff --git a/src/qemu/qemu_conf.c b/src/qemu/qemu_conf.c
+index 1204b189fa..e500da1515 100644
+--- a/src/qemu/qemu_conf.c
++++ b/src/qemu/qemu_conf.c
+@@ -1338,31 +1338,6 @@ virCapsPtr virQEMUDriverGetCapabilities(virQEMUDriverPtr driver,
+ }
+ 
+ 
+-struct virQEMUDriverSearchDomcapsData {
+-    const char *path;
+-    const char *machine;
+-    virArch arch;
+-    virDomainVirtType virttype;
+-};
+-
+-
+-static int
+-virQEMUDriverSearchDomcaps(const void *payload,
+-                           const void *name G_GNUC_UNUSED,
+-                           const void *opaque)
+-{
+-    virDomainCapsPtr domCaps = (virDomainCapsPtr) payload;
+-    struct virQEMUDriverSearchDomcapsData *data = (struct virQEMUDriverSearchDomcapsData *) opaque;
+-
+-    if (STREQ_NULLABLE(data->path, domCaps->path) &&
+-        STREQ_NULLABLE(data->machine, domCaps->machine) &&
+-        data->arch == domCaps->arch &&
+-        data->virttype == domCaps->virttype)
+-        return 1;
+-
+-    return 0;
+-}
+-
+ /**
+  * virQEMUDriverGetDomainCapabilities:
+  *
+@@ -1381,40 +1356,16 @@ virQEMUDriverGetDomainCapabilities(virQEMUDriverPtr driver,
+                                    virArch arch,
+                                    virDomainVirtType virttype)
+ {
+-    g_autoptr(virDomainCaps) domCaps = NULL;
+     g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(driver);
+-    virHashTablePtr domCapsCache = virQEMUCapsGetDomainCapsCache(qemuCaps);
+-    struct virQEMUDriverSearchDomcapsData data = {
+-        .path = virQEMUCapsGetBinary(qemuCaps),
+-        .machine = machine,
+-        .arch = arch,
+-        .virttype = virttype,
+-    };
+-
+-    domCaps = virHashSearch(domCapsCache,
+-                            virQEMUDriverSearchDomcaps, &data, NULL);
+-    if (!domCaps) {
+-        g_autofree char *key = NULL;
+-
+-        /* hash miss, build new domcaps */
+-        if (!(domCaps = virDomainCapsNew(data.path, data.machine,
+-                                         data.arch, data.virttype)))
+-            return NULL;
+-
+-        if (virQEMUCapsFillDomainCaps(qemuCaps, driver->hostarch, domCaps,
+-                                      driver->privileged,
+-                                      cfg->firmwares, cfg->nfirmwares) < 0)
+-            return NULL;
+-
+-        key = g_strdup_printf("%d:%d:%s:%s", data.arch, data.virttype,
+-                              NULLSTR(data.machine), NULLSTR(data.path));
+-
+-        if (virHashAddEntry(domCapsCache, key, domCaps) < 0)
+-            return NULL;
+-    }
+ 
+-    virObjectRef(domCaps);
+-    return g_steal_pointer(&domCaps);
++    return virQEMUCapsGetDomainCapsCache(qemuCaps,
++                                         machine,
++                                         arch,
++                                         virttype,
++                                         driver->hostarch,
++                                         driver->privileged,
++                                         cfg->firmwares,
++                                         cfg->nfirmwares);
+ }
+ 
+ 
+-- 
+2.25.1
+

@@ -1,0 +1,73 @@
+From d3d87e0cefd7144c559dd23fef789e7e37f74e76 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Mon, 20 Apr 2020 15:48:13 +0200
+Subject: [PATCH] hostcpu: Implement virHostCPUGetSignature for s390
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+Reviewed-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=d3d87e0cef
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1874647
+Last-Update: 2020-08-31
+
+---
+ src/util/virhostcpu.c                         | 21 ++++++++++++++++++-
+ .../linux-s390x-with-frequency.signature      |  1 +
+ 2 files changed, 21 insertions(+), 1 deletion(-)
+ create mode 100644 tests/virhostcpudata/linux-s390x-with-frequency.signature
+
+diff --git a/src/util/virhostcpu.c b/src/util/virhostcpu.c
+index a25a4fa333..39bbcf8ca8 100644
+--- a/src/util/virhostcpu.c
++++ b/src/util/virhostcpu.c
+@@ -1430,8 +1430,10 @@ virHostCPUReadSignature(virArch arch,
+     g_autofree char *model = NULL;
+     g_autofree char *stepping = NULL;
+     g_autofree char *revision = NULL;
++    g_autofree char *proc = NULL;
++    g_autofree char *facilities = NULL;
+ 
+-    if (!ARCH_IS_X86(arch) && !ARCH_IS_PPC64(arch))
++    if (!ARCH_IS_X86(arch) && !ARCH_IS_PPC64(arch) && !ARCH_IS_S390(arch))
+         return 0;
+ 
+     while (fgets(line, lineLen, cpuinfo)) {
+@@ -1479,6 +1481,23 @@ virHostCPUReadSignature(virArch arch,
+                 *signature = g_strdup_printf("%s, rev %s", name, revision);
+                 return 0;
+             }
++        } else if (ARCH_IS_S390(arch)) {
++            if (STREQ(parts[0], "vendor_id")) {
++                if (!vendor)
++                    vendor = g_steal_pointer(&parts[1]);
++            } else if (STREQ(parts[0], "processor 0")) {
++                if (!proc)
++                    proc = g_steal_pointer(&parts[1]);
++            } else if (STREQ(parts[0], "facilities")) {
++                if (!facilities)
++                    facilities = g_steal_pointer(&parts[1]);
++            }
++
++            if (vendor && proc && facilities) {
++                *signature = g_strdup_printf("%s, %s, facilities: %s",
++                                             vendor, proc, facilities);
++                return 0;
++            }
+         }
+     }
+ 
+diff --git a/tests/virhostcpudata/linux-s390x-with-frequency.signature b/tests/virhostcpudata/linux-s390x-with-frequency.signature
+new file mode 100644
+index 0000000000..70bb28a154
+--- /dev/null
++++ b/tests/virhostcpudata/linux-s390x-with-frequency.signature
+@@ -0,0 +1 @@
++IBM/S390, version = 00,  identification = 145F07,  machine = 2964, facilities: 0 1 2 3 4 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 30 31 32 33 34 35 36 37 40 41 42 43 44 45 46 47 48 49 50 51 52 53 55 57 64 65 66 67 68 69 70 71 72 73 75 76 77 78 80 128 129 131 132 142 143
+\ No newline at end of file
+-- 
+2.28.0
+

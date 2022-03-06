@@ -1,0 +1,10 @@
+--- a/src/security/apparmor/usr.lib.libvirt.virt-aa-helper
++++ b/src/security/apparmor/usr.lib.libvirt.virt-aa-helper
+@@ -80,6 +80,7 @@ profile virt-aa-helper /usr/{lib,lib64}/
+ 
+   /**.img r,
+   /**.raw r,
++  /**.vhd r,
+   /**.qcow{,2} r,
+   /**.qed r,
+   /**.vmdk r,

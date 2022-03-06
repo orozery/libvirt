@@ -1,0 +1,115 @@
+From 6d786f95a366600e7bbae68c1b324a8131f5e2c5 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
+Date: Fri, 17 Jan 2020 13:25:02 +0000
+Subject: [PATCH] qemu: fixing auto-detecting binary in domain capabilities
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The virConnectGetDomainCapabilities API accepts either a binary path
+to the emulator, or desired guest arch. If guest arch is not given,
+then the host arch is assumed.
+
+In the case where the binary is not given, the code tried to find the
+emulator binary in the existing list of cached emulator capabilities.
+This is not valid since we switched to lazy population of the cache in:
+
+  commit 3dd91af01f30c5bda6328454ef49f3afece755d6
+  Author: Daniel P. Berrangé <berrange@redhat.com>
+  Date:   Mon Dec 2 13:04:26 2019 +0000
+
+    qemu: stop creating capabilities at driver startup
+
+As a result of this change, if there are no persistent guests defined
+using the requested guest architecture, virConnectGetDomainCapabilities
+will fail to find an emulator binary.
+
+The solution is to stop relying on the cached capabilities to find the
+binary and instead use the same logic we use to pick default a binary
+per arch when populating capabilities.
+
+Tested-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Tested-by: Richard W.M. Jones <rjones@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=6d786f95a366600e7bbae68c1b324a8131f5e2c5
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1867460
+Last-Update: 2020-03-20
+
+---
+ src/qemu/qemu_capabilities.c | 45 ++++++++++++++++++------------------
+ 1 file changed, 22 insertions(+), 23 deletions(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index b0854deada..17b0134ab8 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -5284,10 +5284,13 @@ virQEMUCapsCacheLookupDefault(virFileCachePtr cache,
+                               const char **retMachine)
+ {
+     int virttype = VIR_DOMAIN_VIRT_NONE;
+-    int arch = virArchFromHost();
++    virArch hostarch = virArchFromHost();
++    virArch arch = hostarch;
+     virDomainVirtType capsType;
+     virQEMUCapsPtr qemuCaps = NULL;
+     virQEMUCapsPtr ret = NULL;
++    virArch arch_from_caps;
++    g_autofree char *probedbinary = NULL;
+ 
+     if (virttypeStr &&
+         (virttype = virDomainVirtTypeFromString(virttypeStr)) < 0) {
+@@ -5303,31 +5306,27 @@ virQEMUCapsCacheLookupDefault(virFileCachePtr cache,
+         goto cleanup;
+     }
+ 
+-    if (binary) {
+-        virArch arch_from_caps;
++    if (!binary) {
++        probedbinary = virQEMUCapsGetDefaultEmulator(hostarch, arch);
++        binary = probedbinary;
++    }
+ 
+-        if (!(qemuCaps = virQEMUCapsCacheLookup(cache, binary)))
+-            goto cleanup;
++    if (!(qemuCaps = virQEMUCapsCacheLookup(cache, binary)))
++        goto cleanup;
+ 
+-        arch_from_caps = virQEMUCapsGetArch(qemuCaps);
++    arch_from_caps = virQEMUCapsGetArch(qemuCaps);
+ 
+-        if (arch_from_caps != arch &&
+-            !((ARCH_IS_X86(arch) && ARCH_IS_X86(arch_from_caps)) ||
+-              (ARCH_IS_PPC(arch) && ARCH_IS_PPC(arch_from_caps)) ||
+-              (ARCH_IS_ARM(arch) && ARCH_IS_ARM(arch_from_caps)) ||
+-              (ARCH_IS_S390(arch) && ARCH_IS_S390(arch_from_caps)))) {
+-            virReportError(VIR_ERR_INVALID_ARG,
+-                           _("architecture from emulator '%s' doesn't "
+-                             "match given architecture '%s'"),
+-                           virArchToString(arch_from_caps),
+-                           virArchToString(arch));
+-            goto cleanup;
+-        }
+-    } else {
+-        if (!(qemuCaps = virQEMUCapsCacheLookupByArch(cache, arch)))
+-            goto cleanup;
+-
+-        binary = virQEMUCapsGetBinary(qemuCaps);
++    if (arch_from_caps != arch &&
++        !((ARCH_IS_X86(arch) && ARCH_IS_X86(arch_from_caps)) ||
++          (ARCH_IS_PPC(arch) && ARCH_IS_PPC(arch_from_caps)) ||
++          (ARCH_IS_ARM(arch) && ARCH_IS_ARM(arch_from_caps)) ||
++          (ARCH_IS_S390(arch) && ARCH_IS_S390(arch_from_caps)))) {
++        virReportError(VIR_ERR_INVALID_ARG,
++                       _("architecture from emulator '%s' doesn't "
++                         "match given architecture '%s'"),
++                       virArchToString(arch_from_caps),
++                       virArchToString(arch));
++        goto cleanup;
+     }
+ 
+     if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_KVM))
+-- 
+2.25.1
+

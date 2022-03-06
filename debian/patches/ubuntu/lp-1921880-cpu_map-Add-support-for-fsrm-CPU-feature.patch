@@ -1,0 +1,73 @@
+From 8c5c660b99101544d8cfcb8edbe48688c04bee25 Mon Sep 17 00:00:00 2001
+From: Tim Wiederhake <twiederh@redhat.com>
+Date: Wed, 6 Jan 2021 11:05:06 +0100
+Subject: [PATCH] cpu_map: Add support for fsrm CPU feature
+
+Signed-off-by: Tim Wiederhake <twiederh@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=8c5c660b
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1921880
+Last-Update: 2021-04-07
+
+---
+ src/cpu_map/x86_features.xml                                | 3 +++
+ tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-disabled.xml | 2 +-
+ tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-guest.xml    | 1 +
+ tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-host.xml     | 1 +
+ 4 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cpu_map/x86_features.xml b/src/cpu_map/x86_features.xml
+index a55f52b16c..b0bf22d916 100644
+--- a/src/cpu_map/x86_features.xml
++++ b/src/cpu_map/x86_features.xml
+@@ -339,6 +339,9 @@
+   <feature name='avx512-4fmaps'>
+     <cpuid eax_in='0x07' ecx_in='0x00' edx='0x00000008'/>
+   </feature>
++  <feature name='fsrm'>
++    <cpuid eax_in='0x07' ecx_in='0x00' edx='0x00000010'/>
++  </feature>
+   <feature name='md-clear'> <!-- md_clear -->
+     <cpuid eax_in='0x07' ecx_in='0x00' edx='0x00000400'/>
+   </feature>
+diff --git a/tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-disabled.xml b/tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-disabled.xml
+index ce65579bcc..33bd1013f0 100644
+--- a/tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-disabled.xml
+@@ -1,7 +1,7 @@
+ <!-- Features disabled by QEMU -->
+ <cpudata arch='x86'>
+   <cpuid eax_in='0x00000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x0804c1fc' edx='0xb0600000'/>
+-  <cpuid eax_in='0x00000007' ecx_in='0x00' eax='0x00000000' ebx='0x02001000' ecx='0x00400010' edx='0x00000000'/>
++  <cpuid eax_in='0x00000007' ecx_in='0x00' eax='0x00000000' ebx='0x02001000' ecx='0x00400010' edx='0x00000010'/>
+   <cpuid eax_in='0x0000000f' ecx_in='0x01' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000006'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
+ </cpudata>
+diff --git a/tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-guest.xml b/tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-guest.xml
+index 9b75ace710..3a71b28cfb 100644
+--- a/tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-guest.xml
+@@ -24,6 +24,7 @@
+   <feature policy='require' name='sha-ni'/>
+   <feature policy='require' name='ospke'/>
+   <feature policy='require' name='rdpid'/>
++  <feature policy='require' name='fsrm'/>
+   <feature policy='require' name='stibp'/>
+   <feature policy='require' name='arch-capabilities'/>
+   <feature policy='require' name='xsaves'/>
+diff --git a/tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-host.xml b/tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-host.xml
+index efbf9d363b..1582de0422 100644
+--- a/tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ice-Lake-Server-host.xml
+@@ -25,6 +25,7 @@
+   <feature name='sha-ni'/>
+   <feature name='ospke'/>
+   <feature name='rdpid'/>
++  <feature name='fsrm'/>
+   <feature name='stibp'/>
+   <feature name='arch-capabilities'/>
+   <feature name='xsaves'/>
+-- 
+2.31.1
+

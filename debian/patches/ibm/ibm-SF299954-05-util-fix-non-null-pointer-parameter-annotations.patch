@@ -1,0 +1,38 @@
+From 3c9c0e169e477a67c6bfcdafe048f71df9b19308 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
+Date: Mon, 21 Sep 2020 09:57:45 +0100
+Subject: [PATCH 5/5] util: fix non-null pointer parameter annotations
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+An extra parameter was added to virQEMUBuildQemuImgKeySecretOpts in
+
+  commit ecfc4094d832a23fb56e1825d799c93488c168d7
+  Author: Daniel P. Berrangé <berrange@redhat.com>
+  Date:   Tue Sep 15 16:30:37 2020 +0100
+
+    storage: add support for qcow2 LUKS encryption
+
+but the non-null pointer annotations were not adjusted to take account.
+
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 7143ae1265407e30e35bf0fc34c2dc8ab2d77600)
+---
+ src/util/virqemu.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/util/virqemu.h b/src/util/virqemu.h
+index 11284880ff..a939e243f1 100644
+--- a/src/util/virqemu.h
++++ b/src/util/virqemu.h
+@@ -51,4 +51,4 @@ void virQEMUBuildQemuImgKeySecretOpts(virBufferPtr buf,
+                                       int format,
+                                       virStorageEncryptionInfoDefPtr enc,
+                                       const char *alias)
+-    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(2) ATTRIBUTE_NONNULL(3);
++    ATTRIBUTE_NONNULL(1) ATTRIBUTE_NONNULL(3) ATTRIBUTE_NONNULL(4);
+-- 
+2.30.0
+

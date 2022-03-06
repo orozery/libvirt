@@ -1,0 +1,46 @@
+From 8400b6c1983dd1e4504fe19d3421fff0e5866091 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Mon, 24 Feb 2020 13:32:30 +0100
+Subject: [PATCH] qemu: use correct backendType when checking memfd capability
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The backend name is memory-backend-memfd but we've been checking
+for memory-backend-memory.
+
+Reported by GCC on rawhide:
+../../../src/internal.h:75:22: error: 'strcmp' of a string of length 21 and
+an array of size 21 evaluates to nonzero [-Werror=string-compare]
+../../../src/qemu/qemu_command.c:3525:20: note: in expansion of macro 'STREQ'
+ 3525 |         } else if (STREQ(backendType, "memory-backend-memory") &&
+      |                    ^~~~~
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Fixes: 24b74d187cab48a9dc9f409ea78900154c709579
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=8400b6c198
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ src/qemu/qemu_command.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/qemu/qemu_command.c b/src/qemu/qemu_command.c
+index f69a9e651c..6d5b53d30a 100644
+--- a/src/qemu/qemu_command.c
++++ b/src/qemu/qemu_command.c
+@@ -3522,7 +3522,7 @@ qemuBuildMemoryBackendProps(virJSONValuePtr *backendProps,
+                            _("this qemu doesn't support the "
+                              "memory-backend-ram object"));
+             return -1;
+-        } else if (STREQ(backendType, "memory-backend-memory") &&
++        } else if (STREQ(backendType, "memory-backend-memfd") &&
+                    !virQEMUCapsGet(priv->qemuCaps, QEMU_CAPS_OBJECT_MEMORY_MEMFD)) {
+             virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                            _("this qemu doesn't support the "
+-- 
+2.25.1
+

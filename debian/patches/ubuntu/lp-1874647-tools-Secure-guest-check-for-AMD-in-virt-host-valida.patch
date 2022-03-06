@@ -1,0 +1,100 @@
+From 4b561d49ad5d6cc45766714253adb798bb99b6e8 Mon Sep 17 00:00:00 2001
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Mon, 15 Jun 2020 10:28:10 +0200
+Subject: [PATCH] tools: Secure guest check for AMD in virt-host-validate
+
+Add checking in virt-host-validate for secure guest support
+on x86 for AMD Secure Encrypted Virtualization.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Paulo de Rezende Pinatti <ppinatti@linux.ibm.com>
+Reviewed-by: Bjoern Walk <bwalk@linux.ibm.com>
+Reviewed-by: Erik Skultety <eskultet@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=4b561d49ad
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1874647
+Last-Update: 2020-08-31
+
+---
+ tools/virt-host-validate-common.c | 30 +++++++++++++++++++++++++++++-
+ tools/virt-host-validate-common.h |  1 +
+ 2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/tools/virt-host-validate-common.c b/tools/virt-host-validate-common.c
+index a279e9cc19..f68c9c7c96 100644
+--- a/tools/virt-host-validate-common.c
++++ b/tools/virt-host-validate-common.c
+@@ -41,7 +41,8 @@ VIR_ENUM_IMPL(virHostValidateCPUFlag,
+               "vmx",
+               "svm",
+               "sie",
+-              "158");
++              "158",
++              "sev");
+ 
+ static bool quiet;
+ 
+@@ -448,14 +449,18 @@ int virHostValidateSecureGuests(const char *hvname,
+ {
+     virBitmapPtr flags;
+     bool hasFac158 = false;
++    bool hasAMDSev = false;
+     virArch arch = virArchFromHost();
+     g_autofree char *cmdline = NULL;
+     static const char *kIBMValues[] = {"y", "Y", "on", "ON", "oN", "On", "1"};
++    g_autofree char *mod_value = NULL;
+ 
+     flags = virHostValidateGetCPUFlags();
+ 
+     if (flags && virBitmapIsBitSet(flags, VIR_HOST_VALIDATE_CPU_FLAG_FACILITY_158))
+         hasFac158 = true;
++    else if (flags && virBitmapIsBitSet(flags, VIR_HOST_VALIDATE_CPU_FLAG_SEV))
++        hasAMDSev = true;
+ 
+     virBitmapFree(flags);
+ 
+@@ -491,6 +496,29 @@ int virHostValidateSecureGuests(const char *hvname,
+             virHostMsgFail(level, "Hardware or firmware does not provide "
+                                   "support for IBM Secure Execution");
+         }
++    } else if (hasAMDSev) {
++        if (virFileReadValueString(&mod_value, "/sys/module/kvm_amd/parameters/sev") < 0) {
++            virHostMsgFail(level, "AMD Secure Encrypted Virtualization not "
++                                  "supported by the currently used kernel");
++            return 0;
++        }
++
++        if (mod_value[0] != '1') {
++            virHostMsgFail(level,
++                           "AMD Secure Encrypted Virtualization appears to be "
++                           "disabled in kernel. Add kvm_amd.sev=1 "
++                           "to the kernel cmdline arguments");
++            return 0;
++        }
++
++        if (virFileExists("/dev/sev")) {
++            virHostMsgPass();
++            return 1;
++        } else {
++            virHostMsgFail(level,
++                           "AMD Secure Encrypted Virtualization appears to be "
++                           "disabled in firemare.");
++        }
+     } else {
+         virHostMsgFail(level,
+                        "Unknown if this platform has Secure Guest support");
+diff --git a/tools/virt-host-validate-common.h b/tools/virt-host-validate-common.h
+index 44b5544a12..3df5ea0c7e 100644
+--- a/tools/virt-host-validate-common.h
++++ b/tools/virt-host-validate-common.h
+@@ -38,6 +38,7 @@ typedef enum {
+     VIR_HOST_VALIDATE_CPU_FLAG_SVM,
+     VIR_HOST_VALIDATE_CPU_FLAG_SIE,
+     VIR_HOST_VALIDATE_CPU_FLAG_FACILITY_158,
++    VIR_HOST_VALIDATE_CPU_FLAG_SEV,
+ 
+     VIR_HOST_VALIDATE_CPU_FLAG_LAST,
+ } virHostValidateCPUFlag;
+-- 
+2.28.0
+

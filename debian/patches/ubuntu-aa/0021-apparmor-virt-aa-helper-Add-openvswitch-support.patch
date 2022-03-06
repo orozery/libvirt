@@ -1,0 +1,33 @@
+From 8db2fc32dd0edc1b6a8b7841201e50971234cedf Mon Sep 17 00:00:00 2001
+From: Serge Hallyn <serge.hallyn@ubuntu.com>
+Date: Thu, 11 May 2017 16:45:40 +0200
+Subject: [PATCH 21/33] apparmor, virt-aa-helper: Add openvswitch support
+
+Add permission to read under /var/run. This is required for
+some openvswitch info.
+
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1513367
+
+Forwarded: no (part of continuous upstreaming effort)
+Signed-off-by: Stefan Bader <stefan.bader@canonical.com>
+---
+ src/security/apparmor/usr.lib.libvirt.virt-aa-helper | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/security/apparmor/usr.lib.libvirt.virt-aa-helper b/src/security/apparmor/usr.lib.libvirt.virt-aa-helper
+index 9cd6e68..396890c 100644
+--- a/src/security/apparmor/usr.lib.libvirt.virt-aa-helper
++++ b/src/security/apparmor/usr.lib.libvirt.virt-aa-helper
+@@ -38,6 +38,9 @@ profile virt-aa-helper /usr/{lib,lib64}/libvirt/virt-aa-helper {
+   /usr/{lib,lib64}/libvirt/virt-aa-helper mr,
+   /{usr/,}sbin/apparmor_parser Ux,
+ 
++  # for openvswitch
++  /{,var/}run/** rw,
++
+   /etc/apparmor.d/libvirt/* r,
+   /etc/apparmor.d/libvirt/libvirt-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]* rw,
+ 
+-- 
+2.7.4
+

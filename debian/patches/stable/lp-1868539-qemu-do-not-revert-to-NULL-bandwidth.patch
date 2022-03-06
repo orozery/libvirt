@@ -1,0 +1,45 @@
+From bd622e2a211aad449b54683e2ebd5e980418dd7c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 7 Feb 2020 12:40:39 +0100
+Subject: [PATCH] qemu: do not revert to NULL bandwidth
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Otherwise an attempt to set an invalid value:
+  virsh domiftune rhel8.2 vnet0 --outbound 4294968
+on an interface with no bandwidth set crashes.
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Fixes: f02e21cb3379a41cd42f2d8116f2d10dabace83b
+https://bugzilla.redhat.com/show_bug.cgi?id=1800505
+Reviewed-by: Daniel Henrique Barboza <danielhb413@gmail.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=bd622e2a21
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ src/qemu/qemu_driver.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index e69d083836..9b244ec4f2 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -11682,8 +11682,10 @@ qemuDomainSetInterfaceParameters(virDomainPtr dom,
+                                                net->bandwidth,
+                                                false,
+                                                !virDomainNetTypeSharesHostView(net)));
+-            ignore_value(virDomainNetBandwidthUpdate(net,
+-                                                     net->bandwidth));
++            if (net->bandwidth) {
++                ignore_value(virDomainNetBandwidthUpdate(net,
++                                                         net->bandwidth));
++            }
+             goto endjob;
+         }
+ 
+-- 
+2.25.1
+

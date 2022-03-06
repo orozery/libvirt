@@ -1,0 +1,830 @@
+From 96a39aad705f8e37950109d11636085b212af790 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 17 Jun 2020 11:48:16 +0200
+Subject: [PATCH] cpu_map: Add missing AMD SVM features
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+
+Origin: backport, https://libvirt.org/git/?p=libvirt.git;a=commit;h=96a39aad
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1887490
+Last-Update: 2020-10-14
+X-Backport-Note:
+  - some cpu types didn't exist yet, skipped those hunks
+  - qemu 5.0/5.1 didn't exist yet, skipped those hunks
+
+---
+ src/cpu_map/x86_features.xml                  | 32 +++++++++++++++++++
+ .../x86_64-cpuid-A10-5800K-disabled.xml       |  1 +
+ .../x86_64-cpuid-A10-5800K-enabled.xml        |  1 +
+ .../x86_64-cpuid-A10-5800K-guest.xml          | 10 ++++++
+ .../x86_64-cpuid-A10-5800K-host.xml           | 10 ++++++
+ .../x86_64-cpuid-A10-5800K-json.xml           |  2 ++
+ ...86_64-cpuid-EPYC-7601-32-Core-disabled.xml |  1 +
+ ...x86_64-cpuid-EPYC-7601-32-Core-enabled.xml |  1 +
+ .../x86_64-cpuid-EPYC-7601-32-Core-guest.xml  | 10 ++++++
+ .../x86_64-cpuid-EPYC-7601-32-Core-host.xml   | 10 ++++++
+ ...-cpuid-EPYC-7601-32-Core-ibpb-disabled.xml |  1 +
+ ...4-cpuid-EPYC-7601-32-Core-ibpb-enabled.xml |  1 +
+ ..._64-cpuid-EPYC-7601-32-Core-ibpb-guest.xml | 10 ++++++
+ ...6_64-cpuid-EPYC-7601-32-Core-ibpb-host.xml | 10 ++++++
+ ...6_64-cpuid-EPYC-7601-32-Core-ibpb-json.xml |  2 ++
+ .../x86_64-cpuid-EPYC-7601-32-Core-json.xml   |  2 ++
+ .../x86_64-cpuid-FX-8150-guest.xml            | 10 ++++++
+ .../cputestdata/x86_64-cpuid-FX-8150-host.xml | 10 ++++++
+ ...-cpuid-Hygon-C86-7185-32-core-disabled.xml |  1 +
+ ...4-cpuid-Hygon-C86-7185-32-core-enabled.xml |  1 +
+ ..._64-cpuid-Hygon-C86-7185-32-core-guest.xml | 10 ++++++
+ ...6_64-cpuid-Hygon-C86-7185-32-core-host.xml | 10 ++++++
+ ...6_64-cpuid-Hygon-C86-7185-32-core-json.xml |  2 ++
+ .../x86_64-cpuid-Opteron-1352-guest.xml       |  3 ++
+ .../x86_64-cpuid-Opteron-1352-host.xml        |  3 ++
+ .../x86_64-cpuid-Opteron-2350-disabled.xml    |  1 +
+ .../x86_64-cpuid-Opteron-2350-enabled.xml     |  1 +
+ .../x86_64-cpuid-Opteron-2350-guest.xml       |  3 ++
+ .../x86_64-cpuid-Opteron-2350-host.xml        |  3 ++
+ .../x86_64-cpuid-Opteron-2350-json.xml        |  1 +
+ .../x86_64-cpuid-Opteron-6234-disabled.xml    |  1 +
+ .../x86_64-cpuid-Opteron-6234-enabled.xml     |  1 +
+ .../x86_64-cpuid-Opteron-6234-guest.xml       | 10 ++++++
+ .../x86_64-cpuid-Opteron-6234-host.xml        | 10 ++++++
+ .../x86_64-cpuid-Opteron-6234-json.xml        |  2 ++
+ .../x86_64-cpuid-Opteron-6282-guest.xml       | 10 ++++++
+ .../x86_64-cpuid-Opteron-6282-host.xml        | 10 ++++++
+ .../x86_64-cpuid-Phenom-B95-disabled.xml      |  1 +
+ .../x86_64-cpuid-Phenom-B95-enabled.xml       |  1 +
+ .../x86_64-cpuid-Phenom-B95-guest.xml         |  4 +++
+ .../x86_64-cpuid-Phenom-B95-host.xml          |  4 +++
+ .../x86_64-cpuid-Phenom-B95-json.xml          |  2 ++
+ ...puid-Ryzen-7-1800X-Eight-Core-disabled.xml |  1 +
+ ...cpuid-Ryzen-7-1800X-Eight-Core-enabled.xml |  1 +
+ ...4-cpuid-Ryzen-7-1800X-Eight-Core-guest.xml | 10 ++++++
+ ...64-cpuid-Ryzen-7-1800X-Eight-Core-host.xml | 10 ++++++
+ ...64-cpuid-Ryzen-7-1800X-Eight-Core-json.xml |  2 ++
+ ...4-cpuid-Ryzen-9-3900X-12-Core-disabled.xml |  1 +
+ ...64-cpuid-Ryzen-9-3900X-12-Core-enabled.xml |  1 +
+ ...6_64-cpuid-Ryzen-9-3900X-12-Core-guest.xml | 10 ++++++
+ ...86_64-cpuid-Ryzen-9-3900X-12-Core-host.xml | 10 ++++++
+ ...86_64-cpuid-Ryzen-9-3900X-12-Core-json.xml |  2 ++
+ .../domaincapsdata/qemu_3.0.0-tcg.x86_64.xml  |  1 +
+ .../domaincapsdata/qemu_3.1.0-tcg.x86_64.xml  |  1 +
+ .../domaincapsdata/qemu_4.0.0-tcg.x86_64.xml  |  2 ++
+ .../domaincapsdata/qemu_4.1.0-tcg.x86_64.xml  |  2 ++
+ .../domaincapsdata/qemu_4.2.0-tcg.x86_64.xml  |  2 ++
+ .../domaincapsdata/qemu_5.0.0-tcg.x86_64.xml  |  2 ++
+ .../domaincapsdata/qemu_5.1.0-q35.x86_64.xml  |  2 ++
+ .../domaincapsdata/qemu_5.1.0-tcg.x86_64.xml  |  2 ++
+ tests/domaincapsdata/qemu_5.1.0.x86_64.xml    |  2 ++
+ .../cpu-host-model-cmt.x86_64-4.0.0.args      |  6 ++--
+ 62 files changed, 286 insertions(+), 3 deletions(-)
+
+--- a/src/cpu_map/x86_features.xml
++++ b/src/cpu_map/x86_features.xml
+@@ -515,6 +515,38 @@
+     <cpuid eax_in='0x80000008' ebx='0x04000000'/>
+   </feature>
+ 
++  <!-- SVM features -->
++  <feature name='npt'>
++    <cpuid eax_in='0x8000000a' edx='0x00000001'/>
++  </feature>
++  <feature name='lbrv'>
++    <cpuid eax_in='0x8000000a' edx='0x00000002'/>
++  </feature>
++  <feature name='svm-lock'>
++    <cpuid eax_in='0x8000000a' edx='0x00000004'/>
++  </feature>
++  <feature name='nrip-save'>
++    <cpuid eax_in='0x8000000a' edx='0x00000008'/>
++  </feature>
++  <feature name='tsc-scale'>
++    <cpuid eax_in='0x8000000a' edx='0x00000010'/>
++  </feature>
++  <feature name='vmcb-clean'>
++    <cpuid eax_in='0x8000000a' edx='0x00000020'/>
++  </feature>
++  <feature name='flushbyasid'>
++    <cpuid eax_in='0x8000000a' edx='0x00000040'/>
++  </feature>
++  <feature name='decodeassists'>
++    <cpuid eax_in='0x8000000a' edx='0x00000080'/>
++  </feature>
++  <feature name='pause-filter'>
++    <cpuid eax_in='0x8000000a' edx='0x00000400'/>
++  </feature>
++  <feature name='pfthreshold'>
++    <cpuid eax_in='0x8000000a' edx='0x00001000'/>
++  </feature>
++
+   <!-- IA32_ARCH_CAPABILITIES features -->
+   <feature name='rdctl-no'>
+     <msr index='0x10a' edx='0x00000000' eax='0x00000001'/>
+--- a/tests/cputestdata/x86_64-cpuid-A10-5800K-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-A10-5800K-disabled.xml
+@@ -3,4 +3,5 @@
+   <cpuid eax_in='0x00000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x08000008' edx='0x10000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x01cab40c' edx='0x08000000'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x000014f6'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-A10-5800K-enabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-A10-5800K-enabled.xml
+@@ -3,4 +3,5 @@
+   <cpuid eax_in='0x00000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0xb6b83203' edx='0x078bfbff'/>
+   <cpuid eax_in='0x00000007' ecx_in='0x00' eax='0x00000000' ebx='0x0000000a' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00210bf3' edx='0x26500800'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000009'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-A10-5800K-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-A10-5800K-guest.xml
+@@ -22,4 +22,14 @@
+   <feature policy='require' name='perfctr_core'/>
+   <feature policy='require' name='perfctr_nb'/>
+   <feature policy='require' name='invtsc'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='lbrv'/>
++  <feature policy='require' name='svm-lock'/>
++  <feature policy='require' name='nrip-save'/>
++  <feature policy='require' name='tsc-scale'/>
++  <feature policy='require' name='vmcb-clean'/>
++  <feature policy='require' name='flushbyasid'/>
++  <feature policy='require' name='decodeassists'/>
++  <feature policy='require' name='pause-filter'/>
++  <feature policy='require' name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-A10-5800K-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-A10-5800K-host.xml
+@@ -23,4 +23,14 @@
+   <feature name='perfctr_core'/>
+   <feature name='perfctr_nb'/>
+   <feature name='invtsc'/>
++  <feature name='npt'/>
++  <feature name='lbrv'/>
++  <feature name='svm-lock'/>
++  <feature name='nrip-save'/>
++  <feature name='tsc-scale'/>
++  <feature name='vmcb-clean'/>
++  <feature name='flushbyasid'/>
++  <feature name='decodeassists'/>
++  <feature name='pause-filter'/>
++  <feature name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-A10-5800K-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-A10-5800K-json.xml
+@@ -11,6 +11,8 @@
+   <feature policy='require' name='cmp_legacy'/>
+   <feature policy='require' name='cr8legacy'/>
+   <feature policy='require' name='osvw'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='nrip-save'/>
+   <feature policy='disable' name='rdtscp'/>
+   <feature policy='disable' name='svm'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-disabled.xml
+@@ -5,4 +5,5 @@
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x01c2300c' edx='0x00000000'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
+   <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00000005' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x000014f6'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-enabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-enabled.xml
+@@ -5,4 +5,5 @@
+   <cpuid eax_in='0x00000007' ecx_in='0x00' eax='0x00000000' ebx='0x209c01ab' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x00000007' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x000003f3' edx='0x2e500800'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000009'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-guest.xml
+@@ -15,4 +15,14 @@
+   <feature policy='require' name='invtsc'/>
+   <feature policy='require' name='clzero'/>
+   <feature policy='require' name='xsaveerptr'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='lbrv'/>
++  <feature policy='require' name='svm-lock'/>
++  <feature policy='require' name='nrip-save'/>
++  <feature policy='require' name='tsc-scale'/>
++  <feature policy='require' name='vmcb-clean'/>
++  <feature policy='require' name='flushbyasid'/>
++  <feature policy='require' name='decodeassists'/>
++  <feature policy='require' name='pause-filter'/>
++  <feature policy='require' name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-host.xml
+@@ -16,4 +16,14 @@
+   <feature name='invtsc'/>
+   <feature name='clzero'/>
+   <feature name='xsaveerptr'/>
++  <feature name='npt'/>
++  <feature name='lbrv'/>
++  <feature name='svm-lock'/>
++  <feature name='nrip-save'/>
++  <feature name='tsc-scale'/>
++  <feature name='vmcb-clean'/>
++  <feature name='flushbyasid'/>
++  <feature name='decodeassists'/>
++  <feature name='pause-filter'/>
++  <feature name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-disabled.xml
+@@ -5,4 +5,5 @@
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x01c2300c' edx='0x08000000'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
+   <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00000005' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x000014f6'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-enabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-enabled.xml
+@@ -6,4 +6,5 @@
+   <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x00000007' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x000003f3' edx='0x26500800'/>
+   <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00001000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000009'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-guest.xml
+@@ -15,5 +15,15 @@
+   <feature policy='require' name='invtsc'/>
+   <feature policy='require' name='clzero'/>
+   <feature policy='require' name='xsaveerptr'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='lbrv'/>
++  <feature policy='require' name='svm-lock'/>
++  <feature policy='require' name='nrip-save'/>
++  <feature policy='require' name='tsc-scale'/>
++  <feature policy='require' name='vmcb-clean'/>
++  <feature policy='require' name='flushbyasid'/>
++  <feature policy='require' name='decodeassists'/>
++  <feature policy='require' name='pause-filter'/>
++  <feature policy='require' name='pfthreshold'/>
+   <feature policy='disable' name='rdtscp'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-host.xml
+@@ -16,4 +16,14 @@
+   <feature name='invtsc'/>
+   <feature name='clzero'/>
+   <feature name='xsaveerptr'/>
++  <feature name='npt'/>
++  <feature name='lbrv'/>
++  <feature name='svm-lock'/>
++  <feature name='nrip-save'/>
++  <feature name='tsc-scale'/>
++  <feature name='vmcb-clean'/>
++  <feature name='flushbyasid'/>
++  <feature name='decodeassists'/>
++  <feature name='pause-filter'/>
++  <feature name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-ibpb-json.xml
+@@ -6,6 +6,8 @@
+   <feature policy='require' name='hypervisor'/>
+   <feature policy='require' name='tsc_adjust'/>
+   <feature policy='require' name='cmp_legacy'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='nrip-save'/>
+   <feature policy='disable' name='monitor'/>
+   <feature policy='disable' name='rdtscp'/>
+   <feature policy='disable' name='svm'/>
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7601-32-Core-json.xml
+@@ -6,6 +6,8 @@
+   <feature policy='require' name='hypervisor'/>
+   <feature policy='require' name='tsc_adjust'/>
+   <feature policy='require' name='cmp_legacy'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='nrip-save'/>
+   <feature policy='disable' name='monitor'/>
+   <feature policy='disable' name='svm'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-FX-8150-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-FX-8150-guest.xml
+@@ -20,4 +20,14 @@
+   <feature policy='require' name='perfctr_core'/>
+   <feature policy='require' name='perfctr_nb'/>
+   <feature policy='require' name='invtsc'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='lbrv'/>
++  <feature policy='require' name='svm-lock'/>
++  <feature policy='require' name='nrip-save'/>
++  <feature policy='require' name='tsc-scale'/>
++  <feature policy='require' name='vmcb-clean'/>
++  <feature policy='require' name='flushbyasid'/>
++  <feature policy='require' name='decodeassists'/>
++  <feature policy='require' name='pause-filter'/>
++  <feature policy='require' name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-FX-8150-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-FX-8150-host.xml
+@@ -21,4 +21,14 @@
+   <feature name='perfctr_core'/>
+   <feature name='perfctr_nb'/>
+   <feature name='invtsc'/>
++  <feature name='npt'/>
++  <feature name='lbrv'/>
++  <feature name='svm-lock'/>
++  <feature name='nrip-save'/>
++  <feature name='tsc-scale'/>
++  <feature name='vmcb-clean'/>
++  <feature name='flushbyasid'/>
++  <feature name='decodeassists'/>
++  <feature name='pause-filter'/>
++  <feature name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-disabled.xml
+@@ -5,4 +5,5 @@
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x01c2300c' edx='0x00000000'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
+   <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00000005' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x000014f6'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-enabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-enabled.xml
+@@ -6,4 +6,5 @@
+   <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x00000007' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x000003f3' edx='0x2e500800'/>
+   <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x02001000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000009'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-guest.xml
+@@ -15,4 +15,14 @@
+   <feature policy='require' name='invtsc'/>
+   <feature policy='require' name='clzero'/>
+   <feature policy='require' name='xsaveerptr'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='lbrv'/>
++  <feature policy='require' name='svm-lock'/>
++  <feature policy='require' name='nrip-save'/>
++  <feature policy='require' name='tsc-scale'/>
++  <feature policy='require' name='vmcb-clean'/>
++  <feature policy='require' name='flushbyasid'/>
++  <feature policy='require' name='decodeassists'/>
++  <feature policy='require' name='pause-filter'/>
++  <feature policy='require' name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-host.xml
+@@ -16,4 +16,14 @@
+   <feature name='invtsc'/>
+   <feature name='clzero'/>
+   <feature name='xsaveerptr'/>
++  <feature name='npt'/>
++  <feature name='lbrv'/>
++  <feature name='svm-lock'/>
++  <feature name='nrip-save'/>
++  <feature name='tsc-scale'/>
++  <feature name='vmcb-clean'/>
++  <feature name='flushbyasid'/>
++  <feature name='decodeassists'/>
++  <feature name='pause-filter'/>
++  <feature name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-Hygon-C86-7185-32-core-json.xml
+@@ -7,6 +7,8 @@
+   <feature policy='require' name='tsc_adjust'/>
+   <feature policy='require' name='cmp_legacy'/>
+   <feature policy='require' name='virt-ssbd'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='nrip-save'/>
+   <feature policy='disable' name='monitor'/>
+   <feature policy='disable' name='svm'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Opteron-1352-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Opteron-1352-guest.xml
+@@ -15,4 +15,7 @@
+   <feature policy='require' name='osvw'/>
+   <feature policy='require' name='ibs'/>
+   <feature policy='require' name='invtsc'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='lbrv'/>
++  <feature policy='require' name='svm-lock'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Opteron-1352-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Opteron-1352-host.xml
+@@ -16,4 +16,7 @@
+   <feature name='osvw'/>
+   <feature name='ibs'/>
+   <feature name='invtsc'/>
++  <feature name='npt'/>
++  <feature name='lbrv'/>
++  <feature name='svm-lock'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Opteron-2350-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Opteron-2350-disabled.xml
+@@ -3,4 +3,5 @@
+   <cpuid eax_in='0x00000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000008' edx='0x10000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000408' edx='0x08000000'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000006'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Opteron-2350-enabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Opteron-2350-enabled.xml
+@@ -2,4 +2,5 @@
+ <cpudata arch='x86'>
+   <cpuid eax_in='0x00000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x81a02001' edx='0x078bfbff'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x000003f7' edx='0xe6500800'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000001'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Opteron-2350-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Opteron-2350-guest.xml
+@@ -15,4 +15,7 @@
+   <feature policy='require' name='osvw'/>
+   <feature policy='require' name='ibs'/>
+   <feature policy='require' name='invtsc'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='lbrv'/>
++  <feature policy='require' name='svm-lock'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Opteron-2350-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Opteron-2350-host.xml
+@@ -16,4 +16,7 @@
+   <feature name='osvw'/>
+   <feature name='ibs'/>
+   <feature name='invtsc'/>
++  <feature name='npt'/>
++  <feature name='lbrv'/>
++  <feature name='svm-lock'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Opteron-2350-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-Opteron-2350-json.xml
+@@ -14,6 +14,7 @@
+   <feature policy='require' name='cr8legacy'/>
+   <feature policy='require' name='3dnowprefetch'/>
+   <feature policy='require' name='osvw'/>
++  <feature policy='require' name='npt'/>
+   <feature policy='disable' name='monitor'/>
+   <feature policy='disable' name='rdtscp'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Opteron-6234-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Opteron-6234-disabled.xml
+@@ -3,4 +3,5 @@
+   <cpuid eax_in='0x00000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x08000008' edx='0x10000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x01c8b40c' edx='0x08000000'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x000014f6'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Opteron-6234-enabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Opteron-6234-enabled.xml
+@@ -4,4 +4,5 @@
+   <cpuid eax_in='0x00000006' ecx_in='0x00' eax='0x00000004' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x00000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000002' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00010bf3' edx='0x26500800'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000009'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Opteron-6234-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Opteron-6234-guest.xml
+@@ -20,4 +20,14 @@
+   <feature policy='require' name='perfctr_core'/>
+   <feature policy='require' name='perfctr_nb'/>
+   <feature policy='require' name='invtsc'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='lbrv'/>
++  <feature policy='require' name='svm-lock'/>
++  <feature policy='require' name='nrip-save'/>
++  <feature policy='require' name='tsc-scale'/>
++  <feature policy='require' name='vmcb-clean'/>
++  <feature policy='require' name='flushbyasid'/>
++  <feature policy='require' name='decodeassists'/>
++  <feature policy='require' name='pause-filter'/>
++  <feature policy='require' name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Opteron-6234-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Opteron-6234-host.xml
+@@ -21,4 +21,14 @@
+   <feature name='perfctr_core'/>
+   <feature name='perfctr_nb'/>
+   <feature name='invtsc'/>
++  <feature name='npt'/>
++  <feature name='lbrv'/>
++  <feature name='svm-lock'/>
++  <feature name='nrip-save'/>
++  <feature name='tsc-scale'/>
++  <feature name='vmcb-clean'/>
++  <feature name='flushbyasid'/>
++  <feature name='decodeassists'/>
++  <feature name='pause-filter'/>
++  <feature name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Opteron-6234-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-Opteron-6234-json.xml
+@@ -12,6 +12,8 @@
+   <feature policy='require' name='cmp_legacy'/>
+   <feature policy='require' name='cr8legacy'/>
+   <feature policy='require' name='osvw'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='nrip-save'/>
+   <feature policy='disable' name='rdtscp'/>
+   <feature policy='disable' name='svm'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Opteron-6282-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Opteron-6282-guest.xml
+@@ -20,4 +20,14 @@
+   <feature policy='require' name='perfctr_core'/>
+   <feature policy='require' name='perfctr_nb'/>
+   <feature policy='require' name='invtsc'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='lbrv'/>
++  <feature policy='require' name='svm-lock'/>
++  <feature policy='require' name='nrip-save'/>
++  <feature policy='require' name='tsc-scale'/>
++  <feature policy='require' name='vmcb-clean'/>
++  <feature policy='require' name='flushbyasid'/>
++  <feature policy='require' name='decodeassists'/>
++  <feature policy='require' name='pause-filter'/>
++  <feature policy='require' name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Opteron-6282-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Opteron-6282-host.xml
+@@ -21,4 +21,14 @@
+   <feature name='perfctr_core'/>
+   <feature name='perfctr_nb'/>
+   <feature name='invtsc'/>
++  <feature name='npt'/>
++  <feature name='lbrv'/>
++  <feature name='svm-lock'/>
++  <feature name='nrip-save'/>
++  <feature name='tsc-scale'/>
++  <feature name='vmcb-clean'/>
++  <feature name='flushbyasid'/>
++  <feature name='decodeassists'/>
++  <feature name='pause-filter'/>
++  <feature name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Phenom-B95-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Phenom-B95-disabled.xml
+@@ -3,4 +3,5 @@
+   <cpuid eax_in='0x00000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000008' edx='0x10000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x0000340c' edx='0x08000000'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000006'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Phenom-B95-enabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Phenom-B95-enabled.xml
+@@ -2,4 +2,5 @@
+ <cpudata arch='x86'>
+   <cpuid eax_in='0x00000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x80a02001' edx='0x078bfbff'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x000003f3' edx='0xe6400800'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000009'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Phenom-B95-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Phenom-B95-guest.xml
+@@ -17,5 +17,9 @@
+   <feature policy='require' name='skinit'/>
+   <feature policy='require' name='wdt'/>
+   <feature policy='require' name='invtsc'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='lbrv'/>
++  <feature policy='require' name='svm-lock'/>
++  <feature policy='require' name='nrip-save'/>
+   <feature policy='disable' name='nx'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Phenom-B95-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Phenom-B95-host.xml
+@@ -28,4 +28,8 @@
+   <feature name='skinit'/>
+   <feature name='wdt'/>
+   <feature name='invtsc'/>
++  <feature name='npt'/>
++  <feature name='lbrv'/>
++  <feature name='svm-lock'/>
++  <feature name='nrip-save'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Phenom-B95-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-Phenom-B95-json.xml
+@@ -13,6 +13,8 @@
+   <feature policy='require' name='cr8legacy'/>
+   <feature policy='require' name='3dnowprefetch'/>
+   <feature policy='require' name='osvw'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='nrip-save'/>
+   <feature policy='disable' name='monitor'/>
+   <feature policy='disable' name='nx'/>
+   <feature policy='disable' name='rdtscp'/>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-disabled.xml
+@@ -6,4 +6,5 @@
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x01c23008' edx='0x00000000'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
+   <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00000005' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x000014f6'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-enabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-enabled.xml
+@@ -5,4 +5,5 @@
+   <cpuid eax_in='0x00000007' ecx_in='0x00' eax='0x00000000' ebx='0x009c01ab' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x00000007' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x000003f7' edx='0x2e500800'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000009'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-guest.xml
+@@ -15,4 +15,14 @@
+   <feature policy='require' name='invtsc'/>
+   <feature policy='require' name='clzero'/>
+   <feature policy='require' name='xsaveerptr'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='lbrv'/>
++  <feature policy='require' name='svm-lock'/>
++  <feature policy='require' name='nrip-save'/>
++  <feature policy='require' name='tsc-scale'/>
++  <feature policy='require' name='vmcb-clean'/>
++  <feature policy='require' name='flushbyasid'/>
++  <feature policy='require' name='decodeassists'/>
++  <feature policy='require' name='pause-filter'/>
++  <feature policy='require' name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-host.xml
+@@ -16,4 +16,14 @@
+   <feature name='invtsc'/>
+   <feature name='clzero'/>
+   <feature name='xsaveerptr'/>
++  <feature name='npt'/>
++  <feature name='lbrv'/>
++  <feature name='svm-lock'/>
++  <feature name='nrip-save'/>
++  <feature name='tsc-scale'/>
++  <feature name='vmcb-clean'/>
++  <feature name='flushbyasid'/>
++  <feature name='decodeassists'/>
++  <feature name='pause-filter'/>
++  <feature name='pfthreshold'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-7-1800X-Eight-Core-json.xml
+@@ -6,6 +6,8 @@
+   <feature policy='require' name='hypervisor'/>
+   <feature policy='require' name='tsc_adjust'/>
+   <feature policy='require' name='cmp_legacy'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='nrip-save'/>
+   <feature policy='disable' name='monitor'/>
+   <feature policy='disable' name='sha-ni'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-disabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-disabled.xml
+@@ -6,4 +6,5 @@
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x01423408' edx='0x00000000'/>
+   <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
+   <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x00008000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x000014f6'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-enabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-enabled.xml
+@@ -6,5 +6,6 @@
+   <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x0000000f' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x008003f7' edx='0x2e500800'/>
+   <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x03001205' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x8000000a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000009'/>
+   <msr index='0x10a' edx='0x00000000' eax='0x00000069'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-guest.xml
+@@ -25,6 +25,16 @@
+   <feature policy='require' name='wbnoinvd'/>
+   <feature policy='require' name='amd-stibp'/>
+   <feature policy='require' name='amd-ssbd'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='lbrv'/>
++  <feature policy='require' name='svm-lock'/>
++  <feature policy='require' name='nrip-save'/>
++  <feature policy='require' name='tsc-scale'/>
++  <feature policy='require' name='vmcb-clean'/>
++  <feature policy='require' name='flushbyasid'/>
++  <feature policy='require' name='decodeassists'/>
++  <feature policy='require' name='pause-filter'/>
++  <feature policy='require' name='pfthreshold'/>
+   <feature policy='require' name='rdctl-no'/>
+   <feature policy='require' name='skip-l1dfl-vmentry'/>
+   <feature policy='require' name='mds-no'/>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-host.xml
+@@ -26,6 +26,16 @@
+   <feature name='wbnoinvd'/>
+   <feature name='amd-stibp'/>
+   <feature name='amd-ssbd'/>
++  <feature name='npt'/>
++  <feature name='lbrv'/>
++  <feature name='svm-lock'/>
++  <feature name='nrip-save'/>
++  <feature name='tsc-scale'/>
++  <feature name='vmcb-clean'/>
++  <feature name='flushbyasid'/>
++  <feature name='decodeassists'/>
++  <feature name='pause-filter'/>
++  <feature name='pfthreshold'/>
+   <feature name='rdctl-no'/>
+   <feature name='skip-l1dfl-vmentry'/>
+   <feature name='mds-no'/>
+--- a/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-Ryzen-9-3900X-12-Core-json.xml
+@@ -19,6 +19,8 @@
+   <feature policy='require' name='wbnoinvd'/>
+   <feature policy='require' name='amd-ssbd'/>
+   <feature policy='require' name='virt-ssbd'/>
++  <feature policy='require' name='npt'/>
++  <feature policy='require' name='nrip-save'/>
+   <feature policy='require' name='rdctl-no'/>
+   <feature policy='require' name='skip-l1dfl-vmentry'/>
+   <feature policy='require' name='mds-no'/>
+--- a/tests/domaincapsdata/qemu_3.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_3.0.0-tcg.x86_64.xml
+@@ -43,6 +43,7 @@
+       <feature policy='require' name='la57'/>
+       <feature policy='require' name='3dnowext'/>
+       <feature policy='require' name='3dnow'/>
++      <feature policy='require' name='npt'/>
+       <feature policy='disable' name='vme'/>
+       <feature policy='disable' name='fma'/>
+       <feature policy='disable' name='avx'/>
+--- a/tests/domaincapsdata/qemu_3.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_3.1.0-tcg.x86_64.xml
+@@ -43,6 +43,7 @@
+       <feature policy='require' name='la57'/>
+       <feature policy='require' name='3dnowext'/>
+       <feature policy='require' name='3dnow'/>
++      <feature policy='require' name='npt'/>
+       <feature policy='disable' name='vme'/>
+       <feature policy='disable' name='fma'/>
+       <feature policy='disable' name='avx'/>
+--- a/tests/domaincapsdata/qemu_4.0.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_4.0.0-tcg.x86_64.xml
+@@ -43,6 +43,7 @@
+       <feature policy='require' name='la57'/>
+       <feature policy='require' name='3dnowext'/>
+       <feature policy='require' name='3dnow'/>
++      <feature policy='require' name='npt'/>
+       <feature policy='disable' name='vme'/>
+       <feature policy='disable' name='fma'/>
+       <feature policy='disable' name='avx'/>
+@@ -57,6 +58,7 @@
+       <feature policy='disable' name='3dnowprefetch'/>
+       <feature policy='disable' name='osvw'/>
+       <feature policy='disable' name='topoext'/>
++      <feature policy='disable' name='nrip-save'/>
+     </mode>
+     <mode name='custom' supported='yes'>
+       <model usable='yes'>qemu64</model>
+--- a/tests/domaincapsdata/qemu_4.1.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_4.1.0-tcg.x86_64.xml
+@@ -43,6 +43,7 @@
+       <feature policy='require' name='la57'/>
+       <feature policy='require' name='3dnowext'/>
+       <feature policy='require' name='3dnow'/>
++      <feature policy='require' name='npt'/>
+       <feature policy='disable' name='vme'/>
+       <feature policy='disable' name='fma'/>
+       <feature policy='disable' name='avx'/>
+@@ -57,6 +58,7 @@
+       <feature policy='disable' name='osvw'/>
+       <feature policy='disable' name='topoext'/>
+       <feature policy='disable' name='ibpb'/>
++      <feature policy='disable' name='nrip-save'/>
+     </mode>
+     <mode name='custom' supported='yes'>
+       <model usable='yes'>qemu64</model>
+--- a/tests/domaincapsdata/qemu_4.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_4.2.0-tcg.x86_64.xml
+@@ -43,6 +43,7 @@
+       <feature policy='require' name='la57'/>
+       <feature policy='require' name='3dnowext'/>
+       <feature policy='require' name='3dnow'/>
++      <feature policy='require' name='npt'/>
+       <feature policy='disable' name='vme'/>
+       <feature policy='disable' name='fma'/>
+       <feature policy='disable' name='avx'/>
+@@ -57,6 +58,7 @@
+       <feature policy='disable' name='osvw'/>
+       <feature policy='disable' name='topoext'/>
+       <feature policy='disable' name='ibpb'/>
++      <feature policy='disable' name='nrip-save'/>
+     </mode>
+     <mode name='custom' supported='yes'>
+       <model usable='yes'>qemu64</model>
+--- a/tests/qemuxml2argvdata/cpu-host-model-cmt.x86_64-4.0.0.args
++++ b/tests/qemuxml2argvdata/cpu-host-model-cmt.x86_64-4.0.0.args
+@@ -14,9 +14,9 @@ QEMU_AUDIO_DRV=none \
+ file=/tmp/lib/domain--1-QEMUGuest1/master-key.aes \
+ -machine pc-i440fx-4.0,accel=tcg,usb=off,dump-guest-core=off \
+ -cpu EPYC,acpi=on,ss=on,hypervisor=on,erms=on,mpx=on,pcommit=on,clwb=on,pku=on,\
+-la57=on,3dnowext=on,3dnow=on,vme=off,fma=off,avx=off,f16c=off,rdrand=off,\
+-avx2=off,rdseed=off,sha-ni=off,xsavec=off,fxsr_opt=off,misalignsse=off,\
+-3dnowprefetch=off,osvw=off,topoext=off \
++la57=on,3dnowext=on,3dnow=on,npt=on,vme=off,fma=off,avx=off,f16c=off,\
++rdrand=off,avx2=off,rdseed=off,sha-ni=off,xsavec=off,fxsr_opt=off,\
++misalignsse=off,3dnowprefetch=off,osvw=off,topoext=off,nrip-save=off \
+ -m 214 \
+ -overcommit mem-lock=off \
+ -smp 6,sockets=6,cores=1,threads=1 \

@@ -1,0 +1,47 @@
+From 215b5daf43d339284f01610e6952d3b7cb5f18be Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Thu, 20 Feb 2020 15:53:08 +0100
+Subject: [PATCH] m4: libxl: properly fail when libxl is required
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+We specify "true" as the fail-action for LIBVIRT_CHECK_PKG.
+
+This was used when we had a fallback to non-pkg-config detection,
+then removed in commit 5bdcef13d13560512c7d6d8c9e8822e456889e0c
+later re-introduced in commit dc3d2c9f8c7678a950abedd227b1587ca62335c4
+and then left in when removing the old detection again in
+commit 18981877d2e20390a79d068861a24e716f8ee422
+
+Remove it to properly error out when libxl was requested but not
+detected.
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Fixes: 18981877d2e20390a79d068861a24e716f8ee422
+Reviewed-by: Andrea Bolognani <abologna@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=215b5daf43
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ m4/virt-driver-libxl.m4 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/m4/virt-driver-libxl.m4 b/m4/virt-driver-libxl.m4
+index 2f3565f1d5..a958cb26fa 100644
+--- a/m4/virt-driver-libxl.m4
++++ b/m4/virt-driver-libxl.m4
+@@ -30,7 +30,7 @@ AC_DEFUN([LIBVIRT_DRIVER_CHECK_LIBXL], [
+ 
+   dnl search for libxl, aka libxenlight
+   old_with_libxl="$with_libxl"
+-  LIBVIRT_CHECK_PKG([LIBXL], [xenlight], [4.6.0], [true])
++  LIBVIRT_CHECK_PKG([LIBXL], [xenlight], [4.6.0])
+   if test "x$with_libxl" = "xyes" ; then
+     LIBXL_FIRMWARE_DIR=$($PKG_CONFIG --variable xenfirmwaredir xenlight)
+     LIBXL_EXECBIN_DIR=$($PKG_CONFIG --variable libexec_bin xenlight)
+-- 
+2.25.1
+

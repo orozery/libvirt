@@ -1,0 +1,104 @@
+From c6ff3d1535480ef7fac8c9911ad7715f7d0e2acb Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 6 Feb 2020 10:22:23 +0100
+Subject: [PATCH] qemu_capabilities: Disable CPU models on old s390 machine types
+
+Starting a KVM domain on s390 with old machine type (such as
+s390-ccw-virtio-2.5) and without any guest CPU model configured fails
+with
+
+    CPU models are not available: KVM doesn't support CPU models
+
+QEMU error. This is cause by libvirt using host-model CPU as the default
+CPU based on QEMU reporting "host" CPU model as being the default one
+(see commit v5.9.0-402-g24d8202294: qemu: Use host-model CPU on s390 by
+default). However, even though both QEMU and KVM support CPU models on
+s390 and QEMU can give us the host-model CPU, we can't use it with old
+machine types which only support -cpu host.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1795651
+
+Reported-by: Christian Ehrhardt <paelzer@gmail.com>
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=c6ff3d1535480ef7fac8c9911ad7715f7d0e2acb
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1861125
+Last-Update: 2020-02-12
+
+---
+ src/qemu/qemu_capabilities.c                  | 19 ++++++++++++++++++-
+ ...t-cpu-kvm-ccw-virtio-2.7.s390x-latest.args |  4 +---
+ ...lt-cpu-kvm-ccw-virtio-2.7.s390x-latest.xml |  2 +-
+ 3 files changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index 162e49e2d4..dd2311cfa9 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -2274,16 +2274,33 @@ virQEMUCapsIsVirtTypeSupported(virQEMUCapsPtr qemuCaps,
+     return false;
+ }
+ 
++const char *s390HostPassthroughOnlyMachines[] = {
++    "s390-ccw-virtio-2.4",
++    "s390-ccw-virtio-2.5",
++    "s390-ccw-virtio-2.6",
++    "s390-ccw-virtio-2.7",
++    NULL
++};
+ 
+ bool
+ virQEMUCapsIsCPUModeSupported(virQEMUCapsPtr qemuCaps,
+                               virArch hostarch,
+                               virDomainVirtType type,
+                               virCPUMode mode,
+-                              const char *machineType G_GNUC_UNUSED)
++                              const char *machineType)
+ {
+     qemuMonitorCPUDefsPtr cpus;
+ 
++    /* CPU models (except for "host") are not supported by QEMU for on s390
++     * KVM domains with old machine types regardless on QEMU version. */
++    if (ARCH_IS_S390(qemuCaps->arch) &&
++        type == VIR_DOMAIN_VIRT_KVM &&
++        mode != VIR_CPU_MODE_HOST_PASSTHROUGH &&
++        machineType &&
++        g_strv_contains(s390HostPassthroughOnlyMachines, machineType)) {
++        return false;
++    }
++
+     switch (mode) {
+     case VIR_CPU_MODE_HOST_PASSTHROUGH:
+         return type == VIR_DOMAIN_VIRT_KVM &&
+diff --git a/tests/qemuxml2argvdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.args b/tests/qemuxml2argvdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.args
+index 8c25a01e74..0c2567df6c 100644
+--- a/tests/qemuxml2argvdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.args
++++ b/tests/qemuxml2argvdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.args
+@@ -13,9 +13,7 @@ QEMU_AUDIO_DRV=none \
+ -object secret,id=masterKey0,format=raw,\
+ file=/tmp/lib/domain--1-test/master-key.aes \
+ -machine s390-ccw-virtio-2.7,accel=kvm,usb=off,dump-guest-core=off \
+--cpu z13.2-base,aen=on,aefsi=on,msa5=on,msa4=on,msa3=on,msa2=on,msa1=on,\
+-sthyi=on,edat=on,ri=on,edat2=on,vx=on,ipter=on,ap=on,esop=on,apft=on,apqci=on,\
+-cte=on,bpb=on,ppa15=on,zpci=on,sea_esop2=on,te=on,cmm=on \
++-cpu host \
+ -m 256 \
+ -overcommit mem-lock=off \
+ -smp 1,sockets=1,cores=1,threads=1 \
+diff --git a/tests/qemuxml2xmloutdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.xml b/tests/qemuxml2xmloutdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.xml
+index 56fd22b6e5..8799584c11 100644
+--- a/tests/qemuxml2xmloutdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.xml
++++ b/tests/qemuxml2xmloutdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.xml
+@@ -8,7 +8,7 @@
+     <type arch='s390x' machine='s390-ccw-virtio-2.7'>hvm</type>
+     <boot dev='hd'/>
+   </os>
+-  <cpu mode='host-model' check='partial'/>
++  <cpu mode='host-passthrough' check='none'/>
+   <clock offset='utc'/>
+   <on_poweroff>destroy</on_poweroff>
+   <on_reboot>restart</on_reboot>
+-- 
+2.25.0
+

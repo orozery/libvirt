@@ -1,0 +1,50 @@
+From 551fb778f5451d40211867365b5eb9b8384b4e3b Mon Sep 17 00:00:00 2001
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 11 Sep 2020 11:50:33 +0200
+Subject: [PATCH] virnuma: Use numa_nodes_ptr when checking available NUMA
+ nodes
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+In v6.7.0-rc1~86 I've tried to fix a problem where we were not
+detecting NUMA nodes properly because we misused behaviour of a
+libnuma API and as it turned out the behaviour was correct for
+hosts with 64 CPUs in one NUMA node. So I changed the code to use
+nodemask_isset(&numa_all_nodes, ..) instead and it fixed the
+problem on such hosts. However, what I did not realize is that
+numa_all_nodes does not reflect all NUMA nodes visible to
+userspace, it contains only those nodes that the process
+(libvirtd) an allocate memory from, which can be only a subset of
+all NUMA nodes. The bitmask that contains all NUMA nodes visible
+to userspace and which one I should have used is: numa_nodes_ptr.
+For curious ones:
+
+https://github.com/numactl/numactl/commit/4a22f2238234155e11e3e2717c011864722b767b
+
+And as I was fixing virNumaGetNodeCPUs() I came to realize that
+we already have a function that wraps the correct bitmask:
+virNumaNodeIsAvailable().
+
+Fixes: 24d7d85208f812a45686b32a0561cc9c5c9a49c9
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1876956
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=551fb778f5
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1915811
+---
+ src/util/virnuma.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/src/util/virnuma.c
++++ b/src/util/virnuma.c
+@@ -259,7 +259,7 @@
+ 
+     *cpus = NULL;
+ 
+-    if (!nodemask_isset(&numa_all_nodes, node)) {
++    if (!virNumaNodeIsAvailable(node)) {
+         VIR_DEBUG("NUMA topology for cell %d is not available, ignoring", node);
+         return -2;
+     }

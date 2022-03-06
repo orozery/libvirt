@@ -1,0 +1,76 @@
+From 800aed46447edb57b16dd84c5347116c5912a3aa Mon Sep 17 00:00:00 2001
+From: Arnaud Patard <apatard@hupstream.com>
+Date: Thu, 5 Dec 2019 18:11:41 +0100
+Subject: [PATCH] virt-aa-helper: Add support for smartcard host-certificates
+
+When emulating smartcard with host certificates, qemu needs to
+be able to read the certificates files. Add necessary code to
+add the smartcard certificates file path to the apparmor profile.
+
+Passthrough support has been tested with spicevmc and remote-viewer.
+
+v2:
+- Fix CodingStyle
+- Add support for 'host' case.
+- Add a comment to mention that the passthrough case doesn't need
+  some configuration
+- Use one rule with '{,*}' instead of two rules.
+
+Signed-off-by: Arnaud Patard <apatard@hupstream.com>
+Reviewed-by: Cole Robinson <crobinso@redhat.com>
+Acked-by: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=800aed46447edb57b16dd84c5347116c5912a3aa
+Last-Update: 2020-02-12
+
+---
+ src/security/virt-aa-helper.c | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)
+
+diff --git a/src/security/virt-aa-helper.c b/src/security/virt-aa-helper.c
+index 3ce58c8a6c..6f36652c7c 100644
+--- a/src/security/virt-aa-helper.c
++++ b/src/security/virt-aa-helper.c
+@@ -1265,6 +1265,39 @@ get_files(vahControl * ctl)
+         }
+     }
+ 
++    for (i = 0; i < ctl->def->nsmartcards; i++) {
++        virDomainSmartcardDefPtr sc = ctl->def->smartcards[i];
++        virDomainSmartcardType sc_type = sc->type;
++        char *sc_db = (char *)VIR_DOMAIN_SMARTCARD_DEFAULT_DATABASE;
++        if (sc->data.cert.database)
++            sc_db = sc->data.cert.database;
++        switch (sc_type) {
++            /*
++             * Note: At time of writing, to get this working, qemu seccomp sandbox has
++             * to be disabled or the host must be running QEMU with commit
++             * 9a1565a03b79d80b236bc7cc2dbce52a2ef3a1b8.
++             * It's possibly due to libcacard:vcard_emul_new_event_thread(), which calls
++             * PR_CreateThread(), which calls {g,s}etpriority(). And resourcecontrol seccomp
++             * filter forbids it (cf src/qemu/qemu_command.c which seems to always use
++             * resourcecontrol=deny).
++             */
++            case VIR_DOMAIN_SMARTCARD_TYPE_HOST:
++                virBufferAddLit(&buf, "  \"/etc/pki/nssdb/{,*}\" rk,\n");
++                break;
++            case VIR_DOMAIN_SMARTCARD_TYPE_HOST_CERTIFICATES:
++                virBufferAsprintf(&buf, "  \"%s/{,*}\" rk,\n", sc_db);
++                break;
++            /*
++             * Nothing to do for passthrough, as the smartcard
++             * access is done through TCP or Spice
++             */
++            case VIR_DOMAIN_SMARTCARD_TYPE_PASSTHROUGH:
++                break;
++            case VIR_DOMAIN_SMARTCARD_TYPE_LAST:
++                break;
++        }
++    }
++
+     if (ctl->def->virtType == VIR_DOMAIN_VIRT_KVM) {
+         for (i = 0; i < ctl->def->nnets; i++) {
+             virDomainNetDefPtr net = ctl->def->nets[i];
+-- 
+2.25.0
+

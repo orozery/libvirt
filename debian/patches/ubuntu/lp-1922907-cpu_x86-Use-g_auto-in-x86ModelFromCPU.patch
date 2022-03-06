@@ -1,0 +1,71 @@
+From 93f173adbecee92f9973745a2aca65a27c4aa8a6 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 11:29:14 +0100
+Subject: [PATCH] cpu_x86: Use g_auto* in x86ModelFromCPU
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=93f173adbe
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 248c774777..1f76fe1e5c 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -1173,7 +1173,7 @@ x86ModelFromCPU(const virCPUDef *cpu,
+                 virCPUx86MapPtr map,
+                 int policy)
+ {
+-    virCPUx86ModelPtr model = NULL;
++    g_autoptr(virCPUx86Model) model = NULL;
+     size_t i;
+ 
+     /* host CPU only contains required features; requesting other features
+@@ -1216,7 +1216,7 @@ x86ModelFromCPU(const virCPUDef *cpu,
+         if (!(feature = x86FeatureFind(map, cpu->features[i].name))) {
+             virReportError(VIR_ERR_INTERNAL_ERROR,
+                            _("Unknown CPU feature %s"), cpu->features[i].name);
+-            goto error;
++            return NULL;
+         }
+ 
+         if (policy == -1) {
+@@ -1224,7 +1224,7 @@ x86ModelFromCPU(const virCPUDef *cpu,
+             case VIR_CPU_FEATURE_FORCE:
+             case VIR_CPU_FEATURE_REQUIRE:
+                 if (x86DataAdd(&model->data, &feature->data) < 0)
+-                    goto error;
++                    return NULL;
+                 break;
+ 
+             case VIR_CPU_FEATURE_DISABLE:
+@@ -1238,15 +1238,11 @@ x86ModelFromCPU(const virCPUDef *cpu,
+                 break;
+             }
+         } else if (x86DataAdd(&model->data, &feature->data) < 0) {
+-            goto error;
++            return NULL;
+         }
+     }
+ 
+-    return model;
+-
+- error:
+-    x86ModelFree(model);
+-    return NULL;
++    return g_steal_pointer(&model);
+ }
+ 
+ 
+-- 
+2.31.1
+

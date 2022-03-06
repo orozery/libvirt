@@ -1,0 +1,70 @@
+From 50f7483a0d69906e90849f7f0a30f3f535021852 Mon Sep 17 00:00:00 2001
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 28 Jan 2020 13:34:43 +0100
+Subject: [PATCH] util: hash: Use g_new0 for allocating hash internals
+
+Use the glib helpers and remove the mention of returning NULL on failure
+of virHashNew, virHashCreate and virHashCreateFull.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+
+Origin: backport, https://libvirt.org/git/?p=libvirt.git;a=commit;h=50f7483a0d
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1929202
+Last-Update: 2021-07-20
+
+---
+ src/util/virhash.c | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)
+
+--- a/src/util/virhash.c
++++ b/src/util/virhash.c
+@@ -129,7 +129,7 @@ virHashComputeKey(const virHashTable *ta
+  *
+  * Create a new virHashTablePtr.
+  *
+- * Returns the newly created object, or NULL if an error occurred.
++ * Returns the newly created object.
+  */
+ virHashTablePtr virHashCreateFull(ssize_t size,
+                                   virHashDataFree dataFree,
+@@ -143,8 +143,7 @@ virHashTablePtr virHashCreateFull(ssize_
+     if (size <= 0)
+         size = 256;
+ 
+-    if (VIR_ALLOC(table) < 0)
+-        return NULL;
++    table = g_new0(virHashTable, 1);
+ 
+     table->seed = virRandomBits(32);
+     table->size = size;
+@@ -155,10 +154,7 @@ virHashTablePtr virHashCreateFull(ssize_
+     table->keyCopy = keyCopy;
+     table->keyFree = keyFree;
+ 
+-    if (VIR_ALLOC_N(table->table, size) < 0) {
+-        VIR_FREE(table);
+-        return NULL;
+-    }
++    table->table = g_new0(virHashEntryPtr, table->size);
+ 
+     return table;
+ }
+@@ -170,7 +166,7 @@ virHashTablePtr virHashCreateFull(ssize_
+  *
+  * Create a new virHashTablePtr.
+  *
+- * Returns the newly created object, or NULL if an error occurred.
++ * Returns the newly created object.
+  */
+ virHashTablePtr
+ virHashNew(virHashDataFree dataFree)
+@@ -191,7 +187,7 @@ virHashNew(virHashDataFree dataFree)
+  *
+  * Create a new virHashTablePtr.
+  *
+- * Returns the newly created object, or NULL if an error occurred.
++ * Returns the newly created object.
+  */
+ virHashTablePtr virHashCreate(ssize_t size, virHashDataFree dataFree)
+ {

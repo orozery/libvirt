@@ -1,0 +1,1692 @@
+From 8605960389d208936b7f2cf3d2842a22a1aa7e22 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 17 Mar 2020 22:38:21 +0100
+Subject: [PATCH] cputest: Add data for Intel(R) Xeon(R) Platinum 9242 CPU
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Cascadelake-Server with family 6, model 85, stepping 7.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=8605960389
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ tests/cputest.c                               |    1 +
+ ...6_64-cpuid-Xeon-Platinum-9242-disabled.xml |    7 +
+ ...86_64-cpuid-Xeon-Platinum-9242-enabled.xml |   10 +
+ .../x86_64-cpuid-Xeon-Platinum-9242-guest.xml |   38 +
+ .../x86_64-cpuid-Xeon-Platinum-9242-host.xml  |   39 +
+ .../x86_64-cpuid-Xeon-Platinum-9242-json.xml  |   21 +
+ .../x86_64-cpuid-Xeon-Platinum-9242.json      | 1405 +++++++++++++++++
+ .../x86_64-cpuid-Xeon-Platinum-9242.sig       |    4 +
+ .../x86_64-cpuid-Xeon-Platinum-9242.xml       |   68 +
+ 9 files changed, 1593 insertions(+)
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-disabled.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-enabled.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-guest.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-host.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-json.xml
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242.json
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242.sig
+ create mode 100644 tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242.xml
+
+diff --git a/tests/cputest.c b/tests/cputest.c
+index 1f59f0d3a9..f9f1ca74ff 100644
+--- a/tests/cputest.c
++++ b/tests/cputest.c
+@@ -1267,6 +1267,7 @@ mymain(void)
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Xeon-Gold-5115", JSON_MODELS);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Xeon-Gold-6148", JSON_HOST);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Xeon-Platinum-8268", JSON_HOST);
++    DO_TEST_CPUID(VIR_ARCH_X86_64, "Xeon-Platinum-9242", JSON_MODELS);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Xeon-W3520", JSON_HOST);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Xeon-X5460", JSON_NONE);
+     DO_TEST_CPUID(VIR_ARCH_X86_64, "Ice-Lake-Server", JSON_MODELS);
+diff --git a/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-disabled.xml b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-disabled.xml
+new file mode 100644
+index 0000000000..e7c59cef1e
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-disabled.xml
+@@ -0,0 +1,7 @@
++<!-- Features disabled by QEMU -->
++<cpudata arch='x86'>
++  <cpuid eax_in='0x00000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x0804c1dc' edx='0xb0600000'/>
++  <cpuid eax_in='0x00000007' ecx_in='0x00' eax='0x00000000' ebx='0x02001000' ecx='0x00000010' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000f' ecx_in='0x01' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000006'/>
++  <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
++</cpudata>
+diff --git a/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-enabled.xml b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-enabled.xml
+new file mode 100644
+index 0000000000..43c3a93a16
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-enabled.xml
+@@ -0,0 +1,10 @@
++<!-- Features enabled by QEMU -->
++<cpudata arch='x86'>
++  <cpuid eax_in='0x00000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0xf7fa3223' edx='0x0f8bfbff'/>
++  <cpuid eax_in='0x00000006' ecx_in='0x00' eax='0x00000004' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000007' ecx_in='0x00' eax='0x00000000' ebx='0xd19f4fbb' ecx='0x0000080c' edx='0xac000400'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x0000000f' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000121' edx='0x2c100800'/>
++  <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x01001000' ecx='0x00000000' edx='0x00000000'/>
++  <msr index='0x10a' edx='0x00000000' eax='0x000000ab'/>
++</cpudata>
+diff --git a/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-guest.xml b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-guest.xml
+new file mode 100644
+index 0000000000..faabdde8a0
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-guest.xml
+@@ -0,0 +1,38 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='forbid'>Cascadelake-Server</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='ds'/>
++  <feature policy='require' name='acpi'/>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='ht'/>
++  <feature policy='require' name='tm'/>
++  <feature policy='require' name='pbe'/>
++  <feature policy='require' name='dtes64'/>
++  <feature policy='require' name='monitor'/>
++  <feature policy='require' name='ds_cpl'/>
++  <feature policy='require' name='vmx'/>
++  <feature policy='require' name='smx'/>
++  <feature policy='require' name='est'/>
++  <feature policy='require' name='tm2'/>
++  <feature policy='require' name='xtpr'/>
++  <feature policy='require' name='pdcm'/>
++  <feature policy='require' name='dca'/>
++  <feature policy='require' name='osxsave'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='cmt'/>
++  <feature policy='require' name='intel-pt'/>
++  <feature policy='require' name='pku'/>
++  <feature policy='require' name='ospke'/>
++  <feature policy='require' name='md-clear'/>
++  <feature policy='require' name='stibp'/>
++  <feature policy='require' name='arch-capabilities'/>
++  <feature policy='require' name='xsaves'/>
++  <feature policy='require' name='mbm_total'/>
++  <feature policy='require' name='mbm_local'/>
++  <feature policy='require' name='invtsc'/>
++  <feature policy='require' name='rdctl-no'/>
++  <feature policy='require' name='ibrs-all'/>
++  <feature policy='require' name='skip-l1dfl-vmentry'/>
++  <feature policy='require' name='mds-no'/>
++  <feature policy='require' name='tsx-ctrl'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-host.xml b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-host.xml
+new file mode 100644
+index 0000000000..01447f3478
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-host.xml
+@@ -0,0 +1,39 @@
++<cpu>
++  <arch>x86_64</arch>
++  <model>Cascadelake-Server</model>
++  <vendor>Intel</vendor>
++  <feature name='ds'/>
++  <feature name='acpi'/>
++  <feature name='ss'/>
++  <feature name='ht'/>
++  <feature name='tm'/>
++  <feature name='pbe'/>
++  <feature name='dtes64'/>
++  <feature name='monitor'/>
++  <feature name='ds_cpl'/>
++  <feature name='vmx'/>
++  <feature name='smx'/>
++  <feature name='est'/>
++  <feature name='tm2'/>
++  <feature name='xtpr'/>
++  <feature name='pdcm'/>
++  <feature name='dca'/>
++  <feature name='osxsave'/>
++  <feature name='tsc_adjust'/>
++  <feature name='cmt'/>
++  <feature name='intel-pt'/>
++  <feature name='pku'/>
++  <feature name='ospke'/>
++  <feature name='md-clear'/>
++  <feature name='stibp'/>
++  <feature name='arch-capabilities'/>
++  <feature name='xsaves'/>
++  <feature name='mbm_total'/>
++  <feature name='mbm_local'/>
++  <feature name='invtsc'/>
++  <feature name='rdctl-no'/>
++  <feature name='ibrs-all'/>
++  <feature name='skip-l1dfl-vmentry'/>
++  <feature name='mds-no'/>
++  <feature name='tsx-ctrl'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-json.xml b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-json.xml
+new file mode 100644
+index 0000000000..36e95029be
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-json.xml
+@@ -0,0 +1,21 @@
++<cpu mode='custom' match='exact'>
++  <model fallback='forbid'>Cascadelake-Server</model>
++  <vendor>Intel</vendor>
++  <feature policy='require' name='ss'/>
++  <feature policy='require' name='vmx'/>
++  <feature policy='require' name='hypervisor'/>
++  <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='umip'/>
++  <feature policy='require' name='pku'/>
++  <feature policy='require' name='md-clear'/>
++  <feature policy='require' name='stibp'/>
++  <feature policy='require' name='arch-capabilities'/>
++  <feature policy='require' name='xsaves'/>
++  <feature policy='require' name='ibpb'/>
++  <feature policy='require' name='amd-ssbd'/>
++  <feature policy='require' name='rdctl-no'/>
++  <feature policy='require' name='ibrs-all'/>
++  <feature policy='require' name='skip-l1dfl-vmentry'/>
++  <feature policy='require' name='mds-no'/>
++  <feature policy='require' name='tsx-ctrl'/>
++</cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242.json b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242.json
+new file mode 100644
+index 0000000000..103b094135
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242.json
+@@ -0,0 +1,1405 @@
++{
++  "return": {
++    "model": {
++      "name": "base",
++      "props": {
++        "vmx-entry-load-rtit-ctl": false,
++        "phys-bits": 0,
++        "core-id": -1,
++        "xlevel": 2147483656,
++        "cmov": true,
++        "ia64": false,
++        "ssb-no": false,
++        "aes": true,
++        "vmx-apicv-xapic": true,
++        "mmx": true,
++        "rdpid": false,
++        "vmx-page-walk-4": true,
++        "vmx-page-walk-5": false,
++        "arat": true,
++        "gfni": false,
++        "vmx-desc-exit": true,
++        "ibrs-all": true,
++        "pause-filter": false,
++        "xsavec": true,
++        "intel-pt": false,
++        "vmx-cr8-store-exit": true,
++        "hv-frequencies": false,
++        "tsc-frequency": 0,
++        "vmx-rdseed-exit": true,
++        "xd": true,
++        "x-intel-pt-auto-level": false,
++        "hv-vendor-id": "",
++        "vmx-eptp-switching": true,
++        "kvm-asyncpf": true,
++        "kvm_asyncpf": true,
++        "perfctr_core": false,
++        "perfctr-core": false,
++        "mpx": true,
++        "pbe": false,
++        "decodeassists": false,
++        "avx512cd": true,
++        "vmx-exit-load-efer": true,
++        "vmx-exit-clear-bndcfgs": false,
++        "sse4_1": true,
++        "sse4.1": true,
++        "sse4-1": true,
++        "family": 6,
++        "legacy-cache": true,
++        "vmx-vmwrite-vmexit-fields": true,
++        "vmx-vnmi": true,
++        "vmx-true-ctls": true,
++        "host-phys-bits-limit": 48,
++        "vmx-ept-execonly": true,
++        "vmx-exit-save-efer": true,
++        "vmx-invept-all-context": true,
++        "vmware-cpuid-freq": true,
++        "wbnoinvd": false,
++        "avx512f": true,
++        "hv-stimer-direct": false,
++        "msr": true,
++        "mce": true,
++        "mca": true,
++        "hv-runtime": false,
++        "xcrypt": false,
++        "thread-id": -1,
++        "vmx-exit-load-pat": true,
++        "vmx-intr-exit": true,
++        "min-level": 31,
++        "vmx-flexpriority": true,
++        "xgetbv1": true,
++        "cid": false,
++        "hv-relaxed": false,
++        "hv-crash": false,
++        "ds": false,
++        "fxsr": true,
++        "avx512-bf16": false,
++        "vmx-cr8-load-exit": true,
++        "xsaveopt": true,
++        "vmx-apicv-vid": true,
++        "vmx-exit-save-pat": true,
++        "xtpr": false,
++        "tsx-ctrl": true,
++        "vmx-ple": false,
++        "hv-evmcs": false,
++        "avx512vl": true,
++        "avx512-vpopcntdq": false,
++        "phe": false,
++        "extapic": false,
++        "3dnowprefetch": true,
++        "vmx-vmfunc": true,
++        "vmx-activity-shutdown": false,
++        "avx512vbmi2": false,
++        "vmx-encls-exit": false,
++        "cr8legacy": false,
++        "vmx-msr-bitmap": true,
++        "stibp": true,
++        "cpuid-0xb": true,
++        "xcrypt-en": false,
++        "vmx-mwait-exit": true,
++        "kvm_pv_eoi": true,
++        "vmx-pml": true,
++        "apic-id": 4294967295,
++        "vmx-nmi-exit": true,
++        "vmx-invept-single-context-noglobals": true,
++        "rsba": false,
++        "pn": false,
++        "dca": false,
++        "vendor": "GenuineIntel",
++        "vmx-unrestricted-guest": true,
++        "hv-ipi": false,
++        "vmx-cr3-store-noexit": true,
++        "pku": true,
++        "smx": false,
++        "cmp_legacy": false,
++        "cmp-legacy": false,
++        "node-id": -1,
++        "avx512-4fmaps": false,
++        "vmcb_clean": false,
++        "vmcb-clean": false,
++        "3dnowext": false,
++        "amd-no-ssb": false,
++        "hle": true,
++        "npt": false,
++        "rdctl-no": true,
++        "vmx-invvpid": true,
++        "memory": "/machine/unattached/system[0]",
++        "clwb": true,
++        "lbrv": false,
++        "adx": true,
++        "ss": true,
++        "pni": true,
++        "svm_lock": false,
++        "svm-lock": false,
++        "pfthreshold": false,
++        "smep": true,
++        "smap": true,
++        "vmx-invpcid-exit": true,
++        "x2apic": true,
++        "avx512vbmi": false,
++        "avx512vnni": true,
++        "vmx-apicv-x2apic": true,
++        "kvm-pv-sched-yield": true,
++        "hv-stimer": false,
++        "vmx-invlpg-exit": true,
++        "x-hv-synic-kvm-only": true,
++        "vmx-invvpid-all-context": true,
++        "i64": true,
++        "vmx-activity-hlt": true,
++        "flushbyasid": false,
++        "f16c": true,
++        "vmx-exit-ack-intr": true,
++        "ace2-en": false,
++        "pat": true,
++        "pae": true,
++        "sse": true,
++        "die-id": -1,
++        "vmx-tsc-offset": true,
++        "phe-en": false,
++        "kvm_nopiodelay": true,
++        "kvm-nopiodelay": true,
++        "tm": false,
++        "kvmclock-stable-bit": true,
++        "vmx-rdtsc-exit": true,
++        "hypervisor": true,
++        "vmx-rdtscp-exit": true,
++        "socket-id": -1,
++        "mds-no": true,
++        "pcommit": false,
++        "vmx-vpid": true,
++        "syscall": true,
++        "level": 31,
++        "avx512dq": true,
++        "x-migrate-smi-count": false,
++        "svm": false,
++        "full-cpuid-auto-level": true,
++        "hv-reset": false,
++        "invtsc": false,
++        "vmx-monitor-exit": true,
++        "sse3": true,
++        "sse2": true,
++        "vmx-wbinvd-exit": true,
++        "ssbd": true,
++        "est": false,
++        "kvm-poll-control": true,
++        "kvm_poll_control": true,
++        "avx512ifma": false,
++        "tm2": false,
++        "kvm-pv-ipi": true,
++        "kvm-pv-eoi": true,
++        "cx8": true,
++        "vmx-invvpid-single-addr": true,
++        "waitpkg": false,
++        "cldemote": false,
++        "vmx-ept": true,
++        "hv-reenlightenment": false,
++        "kvm_mmu": false,
++        "kvm-mmu": false,
++        "sse4_2": true,
++        "sse4.2": true,
++        "sse4-2": true,
++        "pge": true,
++        "fill-mtrr-mask": true,
++        "avx512bitalg": false,
++        "nodeid_msr": false,
++        "vmx-entry-load-bndcfgs": false,
++        "pdcm": false,
++        "vmx-exit-clear-rtit-ctl": false,
++        "movbe": true,
++        "model": 85,
++        "nrip_save": false,
++        "nrip-save": false,
++        "kvm_pv_unhalt": true,
++        "ssse3": true,
++        "sse4a": false,
++        "vmx-pause-exit": true,
++        "invpcid": true,
++        "pdpe1gb": true,
++        "tsc-deadline": true,
++        "skip-l1dfl-vmentry": true,
++        "vmx-exit-load-perf-global-ctrl": false,
++        "fma": true,
++        "cx16": true,
++        "de": true,
++        "enforce": false,
++        "stepping": 7,
++        "xsave": true,
++        "clflush": true,
++        "skinit": false,
++        "tsc": true,
++        "tce": false,
++        "fpu": true,
++        "ibs": false,
++        "ds_cpl": false,
++        "ds-cpl": false,
++        "vmx-exit-nosave-debugctl": true,
++        "host-phys-bits": true,
++        "fma4": false,
++        "vmx-invept": true,
++        "la57": false,
++        "osvw": false,
++        "check": true,
++        "hv-spinlocks": 4294967295,
++        "vmx-eptad": true,
++        "pmu": false,
++        "pmm": false,
++        "apic": true,
++        "vmx-entry-noload-debugctl": true,
++        "spec-ctrl": true,
++        "vmx-posted-intr": true,
++        "vmx-apicv-register": true,
++        "min-xlevel2": 0,
++        "tsc-adjust": true,
++        "tsc_adjust": true,
++        "kvm-steal-time": true,
++        "kvm_steal_time": true,
++        "vmx-zero-len-inject": false,
++        "kvmclock": true,
++        "pschange-mc-no": true,
++        "l3-cache": true,
++        "vmx-rdrand-exit": true,
++        "lwp": false,
++        "hv-passthrough": false,
++        "amd-ssbd": true,
++        "ibpb": true,
++        "xop": false,
++        "avx": true,
++        "core-capability": false,
++        "vmx-invept-single-context": true,
++        "movdiri": false,
++        "ace2": false,
++        "avx512bw": true,
++        "acpi": false,
++        "hv-vapic": false,
++        "fsgsbase": true,
++        "vmx-ept-1gb": true,
++        "vmx-ept-2mb": true,
++        "ht": false,
++        "vmx-io-exit": true,
++        "nx": true,
++        "pclmulqdq": true,
++        "mmxext": false,
++        "vaes": false,
++        "popcnt": true,
++        "xsaves": true,
++        "movdir64b": false,
++        "tcg-cpuid": true,
++        "vmx-shadow-vmcs": true,
++        "lm": true,
++        "vmx-exit-save-preemption-timer": true,
++        "vmx-entry-load-pat": true,
++        "vmx-entry-load-perf-global-ctrl": false,
++        "vmx-io-bitmap": true,
++        "umip": true,
++        "vmx-store-lma": true,
++        "vmx-movdr-exit": true,
++        "pse": true,
++        "avx2": true,
++        "sep": true,
++        "pclmuldq": true,
++        "virt-ssbd": false,
++        "vmx-cr3-load-noexit": true,
++        "x-hv-max-vps": -1,
++        "nodeid-msr": false,
++        "md-clear": true,
++        "split-lock-detect": false,
++        "kvm": true,
++        "misalignsse": false,
++        "min-xlevel": 2147483656,
++        "kvm-pv-unhalt": true,
++        "bmi2": true,
++        "bmi1": true,
++        "realized": false,
++        "tsc_scale": false,
++        "tsc-scale": false,
++        "topoext": false,
++        "hv-vpindex": false,
++        "hv-no-nonarch-coresharing": "off",
++        "vmx-preemption-timer": true,
++        "ucode-rev": 0,
++        "xlevel2": 0,
++        "clflushopt": true,
++        "vmx-vnmi-pending": true,
++        "kvm-no-smi-migration": false,
++        "monitor": false,
++        "vmx-vintr-pending": true,
++        "avx512er": false,
++        "pmm-en": false,
++        "pcid": true,
++        "taa-no": false,
++        "vmx-secondary-ctls": true,
++        "arch-capabilities": true,
++        "vmx-xsaves": true,
++        "clzero": false,
++        "3dnow": false,
++        "erms": true,
++        "vmx-entry-ia32e-mode": true,
++        "x-force-features": false,
++        "lahf_lm": true,
++        "lahf-lm": true,
++        "vpclmulqdq": false,
++        "vmx-ins-outs": true,
++        "fxsr-opt": false,
++        "hv-synic": false,
++        "xstore": false,
++        "fxsr_opt": false,
++        "kvm-hint-dedicated": false,
++        "rtm": true,
++        "lmce": true,
++        "hv-time": false,
++        "perfctr-nb": false,
++        "perfctr_nb": false,
++        "ffxsr": false,
++        "hv-tlbflush": false,
++        "rdrand": true,
++        "rdseed": true,
++        "avx512-4vnniw": false,
++        "vmx": true,
++        "vme": true,
++        "dtes64": false,
++        "mtrr": true,
++        "rdtscp": true,
++        "xsaveerptr": false,
++        "pse36": true,
++        "kvm-pv-tlb-flush": true,
++        "vmx-activity-wait-sipi": false,
++        "tbm": false,
++        "wdt": false,
++        "vmx-rdpmc-exit": true,
++        "level-func7": 0,
++        "vmx-entry-load-efer": true,
++        "vmx-mtf": true,
++        "pause_filter": false,
++        "sha-ni": false,
++        "model-id": "Intel(R) Xeon(R) Platinum 9242 CPU @ 2.30GHz",
++        "abm": true,
++        "vmx-ept-advanced-exitinfo": false,
++        "avx512pf": false,
++        "vmx-hlt-exit": true,
++        "xstore-en": false
++      }
++    }
++  },
++  "id": "model-expansion"
++}
++
++{
++  "return": [
++    {
++      "name": "max",
++      "typename": "max-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": false
++    },
++    {
++      "name": "host",
++      "typename": "host-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": false
++    },
++    {
++      "name": "base",
++      "typename": "base-x86_64-cpu",
++      "unavailable-features": [],
++      "static": true,
++      "migration-safe": true
++    },
++    {
++      "name": "qemu64-v1",
++      "typename": "qemu64-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "qemu64",
++      "typename": "qemu64-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "qemu32-v1",
++      "typename": "qemu32-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "qemu32",
++      "typename": "qemu32-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "phenom-v1",
++      "typename": "phenom-v1-x86_64-cpu",
++      "unavailable-features": [
++        "mmxext",
++        "fxsr-opt",
++        "3dnowext",
++        "3dnow",
++        "sse4a",
++        "npt"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "phenom",
++      "typename": "phenom-x86_64-cpu",
++      "unavailable-features": [
++        "mmxext",
++        "fxsr-opt",
++        "3dnowext",
++        "3dnow",
++        "sse4a",
++        "npt"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "pentium3-v1",
++      "typename": "pentium3-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "pentium3",
++      "typename": "pentium3-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "pentium2-v1",
++      "typename": "pentium2-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "pentium2",
++      "typename": "pentium2-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "pentium-v1",
++      "typename": "pentium-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "pentium",
++      "typename": "pentium-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "n270-v1",
++      "typename": "n270-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "n270",
++      "typename": "n270-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "kvm64-v1",
++      "typename": "kvm64-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "kvm64",
++      "typename": "kvm64-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "kvm32-v1",
++      "typename": "kvm32-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "kvm32",
++      "typename": "kvm32-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "coreduo-v1",
++      "typename": "coreduo-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "coreduo",
++      "typename": "coreduo-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "core2duo-v1",
++      "typename": "core2duo-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "core2duo",
++      "typename": "core2duo-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "athlon-v1",
++      "typename": "athlon-v1-x86_64-cpu",
++      "unavailable-features": [
++        "mmxext",
++        "3dnowext",
++        "3dnow"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "athlon",
++      "typename": "athlon-x86_64-cpu",
++      "unavailable-features": [
++        "mmxext",
++        "3dnowext",
++        "3dnow"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Westmere-v2",
++      "typename": "Westmere-v2-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Westmere-v1",
++      "typename": "Westmere-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Westmere-IBRS",
++      "typename": "Westmere-IBRS-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Westmere",
++      "typename": "Westmere-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Snowridge-v2",
++      "typename": "Snowridge-v2-x86_64-cpu",
++      "unavailable-features": [
++        "sha-ni",
++        "gfni",
++        "cldemote",
++        "movdiri",
++        "movdir64b",
++        "core-capability",
++        "split-lock-detect"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Snowridge-v1",
++      "typename": "Snowridge-v1-x86_64-cpu",
++      "unavailable-features": [
++        "sha-ni",
++        "gfni",
++        "cldemote",
++        "movdiri",
++        "movdir64b",
++        "core-capability",
++        "split-lock-detect"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Snowridge",
++      "typename": "Snowridge-x86_64-cpu",
++      "unavailable-features": [
++        "sha-ni",
++        "gfni",
++        "cldemote",
++        "movdiri",
++        "movdir64b",
++        "core-capability",
++        "split-lock-detect"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Skylake-Server-v3",
++      "typename": "Skylake-Server-v3-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Skylake-Server-v2",
++      "typename": "Skylake-Server-v2-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Skylake-Server-v1",
++      "typename": "Skylake-Server-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Skylake-Server-noTSX-IBRS",
++      "typename": "Skylake-Server-noTSX-IBRS-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Skylake-Server-IBRS",
++      "typename": "Skylake-Server-IBRS-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Skylake-Server",
++      "typename": "Skylake-Server-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Skylake-Client-v3",
++      "typename": "Skylake-Client-v3-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Skylake-Client-v2",
++      "typename": "Skylake-Client-v2-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Skylake-Client-v1",
++      "typename": "Skylake-Client-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Skylake-Client-noTSX-IBRS",
++      "typename": "Skylake-Client-noTSX-IBRS-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Skylake-Client-IBRS",
++      "typename": "Skylake-Client-IBRS-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Skylake-Client",
++      "typename": "Skylake-Client-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "SandyBridge-v2",
++      "typename": "SandyBridge-v2-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "SandyBridge-v1",
++      "typename": "SandyBridge-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "SandyBridge-IBRS",
++      "typename": "SandyBridge-IBRS-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "SandyBridge",
++      "typename": "SandyBridge-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Penryn-v1",
++      "typename": "Penryn-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Penryn",
++      "typename": "Penryn-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Opteron_G5-v1",
++      "typename": "Opteron_G5-v1-x86_64-cpu",
++      "unavailable-features": [
++        "sse4a",
++        "misalignsse",
++        "xop",
++        "fma4",
++        "tbm",
++        "npt",
++        "nrip-save"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Opteron_G5",
++      "typename": "Opteron_G5-x86_64-cpu",
++      "unavailable-features": [
++        "sse4a",
++        "misalignsse",
++        "xop",
++        "fma4",
++        "tbm"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Opteron_G4-v1",
++      "typename": "Opteron_G4-v1-x86_64-cpu",
++      "unavailable-features": [
++        "sse4a",
++        "misalignsse",
++        "xop",
++        "fma4",
++        "npt",
++        "nrip-save"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Opteron_G4",
++      "typename": "Opteron_G4-x86_64-cpu",
++      "unavailable-features": [
++        "sse4a",
++        "misalignsse",
++        "xop",
++        "fma4"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Opteron_G3-v1",
++      "typename": "Opteron_G3-v1-x86_64-cpu",
++      "unavailable-features": [
++        "sse4a",
++        "misalignsse"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Opteron_G3",
++      "typename": "Opteron_G3-x86_64-cpu",
++      "unavailable-features": [
++        "sse4a",
++        "misalignsse"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Opteron_G2-v1",
++      "typename": "Opteron_G2-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Opteron_G2",
++      "typename": "Opteron_G2-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Opteron_G1-v1",
++      "typename": "Opteron_G1-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Opteron_G1",
++      "typename": "Opteron_G1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Nehalem-v2",
++      "typename": "Nehalem-v2-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Nehalem-v1",
++      "typename": "Nehalem-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Nehalem-IBRS",
++      "typename": "Nehalem-IBRS-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Nehalem",
++      "typename": "Nehalem-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "KnightsMill-v1",
++      "typename": "KnightsMill-v1-x86_64-cpu",
++      "unavailable-features": [
++        "avx512pf",
++        "avx512er",
++        "avx512-vpopcntdq",
++        "avx512-4vnniw",
++        "avx512-4fmaps"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "KnightsMill",
++      "typename": "KnightsMill-x86_64-cpu",
++      "unavailable-features": [
++        "avx512pf",
++        "avx512er",
++        "avx512-vpopcntdq",
++        "avx512-4vnniw",
++        "avx512-4fmaps"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "IvyBridge-v2",
++      "typename": "IvyBridge-v2-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "IvyBridge-v1",
++      "typename": "IvyBridge-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "IvyBridge-IBRS",
++      "typename": "IvyBridge-IBRS-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "IvyBridge",
++      "typename": "IvyBridge-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Icelake-Server-v2",
++      "typename": "Icelake-Server-v2-x86_64-cpu",
++      "unavailable-features": [
++        "avx512vbmi",
++        "avx512vbmi2",
++        "gfni",
++        "vaes",
++        "vpclmulqdq",
++        "avx512bitalg",
++        "avx512-vpopcntdq",
++        "la57",
++        "wbnoinvd"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Icelake-Server-v1",
++      "typename": "Icelake-Server-v1-x86_64-cpu",
++      "unavailable-features": [
++        "avx512vbmi",
++        "avx512vbmi2",
++        "gfni",
++        "vaes",
++        "vpclmulqdq",
++        "avx512bitalg",
++        "avx512-vpopcntdq",
++        "la57",
++        "wbnoinvd"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Icelake-Server-noTSX",
++      "typename": "Icelake-Server-noTSX-x86_64-cpu",
++      "unavailable-features": [
++        "avx512vbmi",
++        "avx512vbmi2",
++        "gfni",
++        "vaes",
++        "vpclmulqdq",
++        "avx512bitalg",
++        "avx512-vpopcntdq",
++        "la57",
++        "wbnoinvd"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Icelake-Server",
++      "typename": "Icelake-Server-x86_64-cpu",
++      "unavailable-features": [
++        "avx512vbmi",
++        "avx512vbmi2",
++        "gfni",
++        "vaes",
++        "vpclmulqdq",
++        "avx512bitalg",
++        "avx512-vpopcntdq",
++        "la57",
++        "wbnoinvd"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Icelake-Client-v2",
++      "typename": "Icelake-Client-v2-x86_64-cpu",
++      "unavailable-features": [
++        "avx512vbmi",
++        "avx512vbmi2",
++        "gfni",
++        "vaes",
++        "vpclmulqdq",
++        "avx512bitalg",
++        "avx512-vpopcntdq",
++        "wbnoinvd"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Icelake-Client-v1",
++      "typename": "Icelake-Client-v1-x86_64-cpu",
++      "unavailable-features": [
++        "avx512vbmi",
++        "avx512vbmi2",
++        "gfni",
++        "vaes",
++        "vpclmulqdq",
++        "avx512bitalg",
++        "avx512-vpopcntdq",
++        "wbnoinvd"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Icelake-Client-noTSX",
++      "typename": "Icelake-Client-noTSX-x86_64-cpu",
++      "unavailable-features": [
++        "avx512vbmi",
++        "avx512vbmi2",
++        "gfni",
++        "vaes",
++        "vpclmulqdq",
++        "avx512bitalg",
++        "avx512-vpopcntdq",
++        "wbnoinvd"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Icelake-Client",
++      "typename": "Icelake-Client-x86_64-cpu",
++      "unavailable-features": [
++        "avx512vbmi",
++        "avx512vbmi2",
++        "gfni",
++        "vaes",
++        "vpclmulqdq",
++        "avx512bitalg",
++        "avx512-vpopcntdq",
++        "wbnoinvd"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Haswell-v4",
++      "typename": "Haswell-v4-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Haswell-v3",
++      "typename": "Haswell-v3-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Haswell-v2",
++      "typename": "Haswell-v2-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Haswell-v1",
++      "typename": "Haswell-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Haswell-noTSX-IBRS",
++      "typename": "Haswell-noTSX-IBRS-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Haswell-noTSX",
++      "typename": "Haswell-noTSX-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Haswell-IBRS",
++      "typename": "Haswell-IBRS-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Haswell",
++      "typename": "Haswell-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "EPYC-v2",
++      "typename": "EPYC-v2-x86_64-cpu",
++      "unavailable-features": [
++        "sha-ni",
++        "mmxext",
++        "fxsr-opt",
++        "cr8legacy",
++        "sse4a",
++        "misalignsse",
++        "osvw",
++        "npt",
++        "nrip-save"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "EPYC-v1",
++      "typename": "EPYC-v1-x86_64-cpu",
++      "unavailable-features": [
++        "sha-ni",
++        "mmxext",
++        "fxsr-opt",
++        "cr8legacy",
++        "sse4a",
++        "misalignsse",
++        "osvw",
++        "npt",
++        "nrip-save"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "EPYC-IBPB",
++      "typename": "EPYC-IBPB-x86_64-cpu",
++      "unavailable-features": [
++        "sha-ni",
++        "mmxext",
++        "fxsr-opt",
++        "cr8legacy",
++        "sse4a",
++        "misalignsse",
++        "osvw"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "EPYC",
++      "typename": "EPYC-x86_64-cpu",
++      "unavailable-features": [
++        "sha-ni",
++        "mmxext",
++        "fxsr-opt",
++        "cr8legacy",
++        "sse4a",
++        "misalignsse",
++        "osvw"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Dhyana-v1",
++      "typename": "Dhyana-v1-x86_64-cpu",
++      "unavailable-features": [
++        "mmxext",
++        "fxsr-opt",
++        "cr8legacy",
++        "sse4a",
++        "misalignsse",
++        "osvw",
++        "npt",
++        "nrip-save"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Dhyana",
++      "typename": "Dhyana-x86_64-cpu",
++      "unavailable-features": [
++        "mmxext",
++        "fxsr-opt",
++        "cr8legacy",
++        "sse4a",
++        "misalignsse",
++        "osvw",
++        "npt",
++        "nrip-save"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Denverton-v1",
++      "typename": "Denverton-v1-x86_64-cpu",
++      "unavailable-features": [
++        "sha-ni"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Denverton",
++      "typename": "Denverton-x86_64-cpu",
++      "unavailable-features": [
++        "sha-ni"
++      ],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Conroe-v1",
++      "typename": "Conroe-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Conroe",
++      "typename": "Conroe-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Cascadelake-Server-v3",
++      "typename": "Cascadelake-Server-v3-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Cascadelake-Server-v2",
++      "typename": "Cascadelake-Server-v2-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Cascadelake-Server-v1",
++      "typename": "Cascadelake-Server-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Cascadelake-Server-noTSX",
++      "typename": "Cascadelake-Server-noTSX-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Cascadelake-Server",
++      "typename": "Cascadelake-Server-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Broadwell-v4",
++      "typename": "Broadwell-v4-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Broadwell-v3",
++      "typename": "Broadwell-v3-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Broadwell-v2",
++      "typename": "Broadwell-v2-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Broadwell-v1",
++      "typename": "Broadwell-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Broadwell-noTSX-IBRS",
++      "typename": "Broadwell-noTSX-IBRS-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Broadwell-noTSX",
++      "typename": "Broadwell-noTSX-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Broadwell-IBRS",
++      "typename": "Broadwell-IBRS-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "Broadwell",
++      "typename": "Broadwell-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "486-v1",
++      "typename": "486-v1-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    },
++    {
++      "name": "486",
++      "typename": "486-x86_64-cpu",
++      "unavailable-features": [],
++      "static": false,
++      "migration-safe": true
++    }
++  ],
++  "id": "definitions"
++}
+diff --git a/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242.sig b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242.sig
+new file mode 100644
+index 0000000000..082a25b4ee
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242.sig
+@@ -0,0 +1,4 @@
++050657
++family:     6 (0x06)
++model:     85 (0x55)
++stepping:   7 (0x07)
+diff --git a/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242.xml b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242.xml
+new file mode 100644
+index 0000000000..e3bdd881b6
+--- /dev/null
++++ b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242.xml
+@@ -0,0 +1,68 @@
++<!-- Intel(R) Xeon(R) Platinum 9242 CPU @ 2.30GHz -->
++<cpudata arch='x86'>
++  <cpuid eax_in='0x00000000' ecx_in='0x00' eax='0x0000001f' ebx='0x756e6547' ecx='0x6c65746e' edx='0x49656e69'/>
++  <cpuid eax_in='0x00000001' ecx_in='0x00' eax='0x00050657' ebx='0x07800800' ecx='0x7ffefbff' edx='0xbfebfbff'/>
++  <cpuid eax_in='0x00000002' ecx_in='0x00' eax='0x76036301' ebx='0x00f0b5ff' ecx='0x00000000' edx='0x00c30000'/>
++  <cpuid eax_in='0x00000003' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000004' ecx_in='0x00' eax='0x7c004121' ebx='0x01c0003f' ecx='0x0000003f' edx='0x00000000'/>
++  <cpuid eax_in='0x00000004' ecx_in='0x01' eax='0x7c004122' ebx='0x01c0003f' ecx='0x0000003f' edx='0x00000000'/>
++  <cpuid eax_in='0x00000004' ecx_in='0x02' eax='0x7c004143' ebx='0x03c0003f' ecx='0x000003ff' edx='0x00000000'/>
++  <cpuid eax_in='0x00000004' ecx_in='0x03' eax='0x7c0fc163' ebx='0x0280003f' ecx='0x0000cfff' edx='0x00000005'/>
++  <cpuid eax_in='0x00000005' ecx_in='0x00' eax='0x00000040' ebx='0x00000040' ecx='0x00000003' edx='0x00002020'/>
++  <cpuid eax_in='0x00000006' ecx_in='0x00' eax='0x00000ef7' ebx='0x00000002' ecx='0x00000009' edx='0x00000000'/>
++  <cpuid eax_in='0x00000007' ecx_in='0x00' eax='0x00000000' ebx='0xd39ffffb' ecx='0x00000818' edx='0xbc000400'/>
++  <cpuid eax_in='0x00000008' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000009' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000a' ecx_in='0x00' eax='0x07300404' ebx='0x00000000' ecx='0x00000000' edx='0x00000603'/>
++  <cpuid eax_in='0x0000000b' ecx_in='0x00' eax='0x00000001' ebx='0x00000002' ecx='0x00000100' edx='0x00000007'/>
++  <cpuid eax_in='0x0000000b' ecx_in='0x01' eax='0x00000006' ebx='0x00000030' ecx='0x00000201' edx='0x00000007'/>
++  <cpuid eax_in='0x0000000c' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x00' eax='0x000002ff' ebx='0x00000a88' ecx='0x00000a88' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x0000000f' ebx='0x00000a08' ecx='0x00000100' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x02' eax='0x00000100' ebx='0x00000240' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x03' eax='0x00000040' ebx='0x000003c0' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x04' eax='0x00000040' ebx='0x00000400' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x05' eax='0x00000040' ebx='0x00000440' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x06' eax='0x00000200' ebx='0x00000480' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x07' eax='0x00000400' ebx='0x00000680' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x08' eax='0x00000080' ebx='0x00000000' ecx='0x00000001' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000d' ecx_in='0x09' eax='0x00000008' ebx='0x00000a80' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000e' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000000f' ecx_in='0x00' eax='0x00000000' ebx='0x000000cf' ecx='0x00000000' edx='0x00000002'/>
++  <cpuid eax_in='0x0000000f' ecx_in='0x01' eax='0x00000000' ebx='0x0001a000' ecx='0x000000cf' edx='0x00000007'/>
++  <cpuid eax_in='0x00000010' ecx_in='0x00' eax='0x00000000' ebx='0x0000000a' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000010' ecx_in='0x01' eax='0x0000000a' ebx='0x00000600' ecx='0x00000004' edx='0x0000000f'/>
++  <cpuid eax_in='0x00000010' ecx_in='0x03' eax='0x00000059' ebx='0x00000000' ecx='0x00000004' edx='0x00000007'/>
++  <cpuid eax_in='0x00000011' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000012' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000013' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000014' ecx_in='0x00' eax='0x00000001' ebx='0x0000000f' ecx='0x00000007' edx='0x00000000'/>
++  <cpuid eax_in='0x00000014' ecx_in='0x01' eax='0x02490002' ebx='0x003f3fff' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000015' ecx_in='0x00' eax='0x00000002' ebx='0x000000b8' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000016' ecx_in='0x00' eax='0x000008fc' ebx='0x00000ed8' ecx='0x00000064' edx='0x00000000'/>
++  <cpuid eax_in='0x00000017' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000018' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x00000019' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000001a' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000001b' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000001c' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000001d' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000001e' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x0000001f' ecx_in='0x00' eax='0x00000001' ebx='0x00000002' ecx='0x00000100' edx='0x00000007'/>
++  <cpuid eax_in='0x0000001f' ecx_in='0x01' eax='0x00000006' ebx='0x00000030' ecx='0x00000201' edx='0x00000007'/>
++  <cpuid eax_in='0x0000001f' ecx_in='0x02' eax='0x00000007' ebx='0x00000060' ecx='0x00000502' edx='0x00000007'/>
++  <cpuid eax_in='0x0000001f' ecx_in='0x03' eax='0x00000000' ebx='0x00000000' ecx='0x00000003' edx='0x00000007'/>
++  <cpuid eax_in='0x20000000' ecx_in='0x00' eax='0x00000001' ebx='0x00000002' ecx='0x00000100' edx='0x00000007'/>
++  <cpuid eax_in='0x80000000' ecx_in='0x00' eax='0x80000008' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000121' edx='0x2c100800'/>
++  <cpuid eax_in='0x80000002' ecx_in='0x00' eax='0x65746e49' ebx='0x2952286c' ecx='0x6f655820' edx='0x2952286e'/>
++  <cpuid eax_in='0x80000003' ecx_in='0x00' eax='0x616c5020' ebx='0x756e6974' ecx='0x3239206d' edx='0x43203234'/>
++  <cpuid eax_in='0x80000004' ecx_in='0x00' eax='0x40205550' ebx='0x332e3220' ecx='0x7a484730' edx='0x00000000'/>
++  <cpuid eax_in='0x80000005' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x80000006' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x01006040' edx='0x00000000'/>
++  <cpuid eax_in='0x80000007' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000000' edx='0x00000100'/>
++  <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x0000302e' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
++  <cpuid eax_in='0x80860000' ecx_in='0x00' eax='0x000008fc' ebx='0x00000ed8' ecx='0x00000064' edx='0x00000000'/>
++  <cpuid eax_in='0xc0000000' ecx_in='0x00' eax='0x000008fc' ebx='0x00000ed8' ecx='0x00000064' edx='0x00000000'/>
++  <msr index='0x10a' edx='0x00000000' eax='0x000000ab'/>
++</cpudata>
+-- 
+2.31.1
+

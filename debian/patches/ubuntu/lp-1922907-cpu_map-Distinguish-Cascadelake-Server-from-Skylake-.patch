@@ -1,0 +1,151 @@
+From 5d6059f8ec16d64f240dc5e6413ca55a3b46b3f7 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 26 Mar 2020 21:55:14 +0100
+Subject: [PATCH] cpu_map: Distinguish Cascadelake-Server from Skylake-Server
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The signatures of these two CPU model differ only in stepping as both
+report family 6 and model 85. Skylake-Server uses stepping 4 or less and
+Cascadelake-Server uses stepping 5..7.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1761678
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=5d6059f8ec
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu_map/x86_Cascadelake-Server-noTSX.xml            | 2 +-
+ src/cpu_map/x86_Cascadelake-Server.xml                  | 2 +-
+ src/cpu_map/x86_Skylake-Server-IBRS.xml                 | 2 +-
+ src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml           | 2 +-
+ src/cpu_map/x86_Skylake-Server.xml                      | 2 +-
+ tests/cputestdata/x86_64-cpuid-Xeon-Gold-6130-guest.xml | 5 +++--
+ tests/cputestdata/x86_64-cpuid-Xeon-Gold-6130-json.xml  | 5 +++--
+ 7 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/cpu_map/x86_Cascadelake-Server-noTSX.xml b/src/cpu_map/x86_Cascadelake-Server-noTSX.xml
+index 459174a30d..bfd4629836 100644
+--- a/src/cpu_map/x86_Cascadelake-Server-noTSX.xml
++++ b/src/cpu_map/x86_Cascadelake-Server-noTSX.xml
+@@ -1,7 +1,7 @@
+ <cpus>
+   <model name='Cascadelake-Server-noTSX'>
+     <decode host='on' guest='off'/>
+-    <signature family='6' model='85'/> <!-- 050654 -->
++    <signature family='6' model='85' stepping='5-7'/> <!-- 050654 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+     <feature name='abm'/>
+diff --git a/src/cpu_map/x86_Cascadelake-Server.xml b/src/cpu_map/x86_Cascadelake-Server.xml
+index d7ec42f57e..335e9cb584 100644
+--- a/src/cpu_map/x86_Cascadelake-Server.xml
++++ b/src/cpu_map/x86_Cascadelake-Server.xml
+@@ -1,7 +1,7 @@
+ <cpus>
+   <model name='Cascadelake-Server'>
+     <decode host='on' guest='on'/>
+-    <signature family='6' model='85'/> <!-- 050654 -->
++    <signature family='6' model='85' stepping='5-7'/> <!-- 050654 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+     <feature name='abm'/>
+diff --git a/src/cpu_map/x86_Skylake-Server-IBRS.xml b/src/cpu_map/x86_Skylake-Server-IBRS.xml
+index bd6b6457ad..9fb3488809 100644
+--- a/src/cpu_map/x86_Skylake-Server-IBRS.xml
++++ b/src/cpu_map/x86_Skylake-Server-IBRS.xml
+@@ -1,7 +1,7 @@
+ <cpus>
+   <model name='Skylake-Server-IBRS'>
+     <decode host='on' guest='on'/>
+-    <signature family='6' model='85'/> <!-- 050654 -->
++    <signature family='6' model='85' stepping='0-4'/> <!-- 050654 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+     <feature name='abm'/>
+diff --git a/src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml b/src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml
+index c2b7de40e8..c162c0acc3 100644
+--- a/src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml
++++ b/src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml
+@@ -1,7 +1,7 @@
+ <cpus>
+   <model name='Skylake-Server-noTSX-IBRS'>
+     <decode host='on' guest='off'/>
+-    <signature family='6' model='85'/> <!-- 050654 -->
++    <signature family='6' model='85' stepping='0-4'/> <!-- 050654 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+     <feature name='abm'/>
+diff --git a/src/cpu_map/x86_Skylake-Server.xml b/src/cpu_map/x86_Skylake-Server.xml
+index f96875a85f..e022d94c84 100644
+--- a/src/cpu_map/x86_Skylake-Server.xml
++++ b/src/cpu_map/x86_Skylake-Server.xml
+@@ -1,7 +1,7 @@
+ <cpus>
+   <model name='Skylake-Server'>
+     <decode host='on' guest='on'/>
+-    <signature family='6' model='85'/> <!-- 050654 -->
++    <signature family='6' model='85' stepping='0-4'/> <!-- 050654 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+     <feature name='abm'/>
+diff --git a/tests/cputestdata/x86_64-cpuid-Xeon-Gold-6130-guest.xml b/tests/cputestdata/x86_64-cpuid-Xeon-Gold-6130-guest.xml
+index cfb0eb982d..c21cb1e600 100644
+--- a/tests/cputestdata/x86_64-cpuid-Xeon-Gold-6130-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Xeon-Gold-6130-guest.xml
+@@ -1,5 +1,5 @@
+ <cpu mode='custom' match='exact'>
+-  <model fallback='forbid'>Cascadelake-Server</model>
++  <model fallback='forbid'>Skylake-Server-IBRS</model>
+   <vendor>Intel</vendor>
+   <feature policy='require' name='ds'/>
+   <feature policy='require' name='acpi'/>
+@@ -20,14 +20,15 @@
+   <feature policy='require' name='osxsave'/>
+   <feature policy='require' name='tsc_adjust'/>
+   <feature policy='require' name='cmt'/>
++  <feature policy='require' name='clflushopt'/>
+   <feature policy='require' name='intel-pt'/>
+   <feature policy='require' name='pku'/>
+   <feature policy='require' name='ospke'/>
+   <feature policy='require' name='md-clear'/>
+   <feature policy='require' name='stibp'/>
++  <feature policy='require' name='ssbd'/>
+   <feature policy='require' name='xsaves'/>
+   <feature policy='require' name='mbm_total'/>
+   <feature policy='require' name='mbm_local'/>
+   <feature policy='require' name='invtsc'/>
+-  <feature policy='disable' name='avx512vnni'/>
+ </cpu>
+diff --git a/tests/cputestdata/x86_64-cpuid-Xeon-Gold-6130-json.xml b/tests/cputestdata/x86_64-cpuid-Xeon-Gold-6130-json.xml
+index 968d904557..b482043ccf 100644
+--- a/tests/cputestdata/x86_64-cpuid-Xeon-Gold-6130-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-Xeon-Gold-6130-json.xml
+@@ -1,16 +1,17 @@
+ <cpu mode='custom' match='exact'>
+-  <model fallback='forbid'>Cascadelake-Server</model>
++  <model fallback='forbid'>Skylake-Server-IBRS</model>
+   <vendor>Intel</vendor>
+   <feature policy='require' name='ss'/>
+   <feature policy='require' name='vmx'/>
+   <feature policy='require' name='hypervisor'/>
+   <feature policy='require' name='tsc_adjust'/>
++  <feature policy='require' name='clflushopt'/>
+   <feature policy='require' name='umip'/>
+   <feature policy='require' name='pku'/>
+   <feature policy='require' name='md-clear'/>
+   <feature policy='require' name='stibp'/>
+   <feature policy='require' name='arch-capabilities'/>
++  <feature policy='require' name='ssbd'/>
+   <feature policy='require' name='xsaves'/>
+   <feature policy='require' name='skip-l1dfl-vmentry'/>
+-  <feature policy='disable' name='avx512vnni'/>
+ </cpu>
+-- 
+2.31.1
+

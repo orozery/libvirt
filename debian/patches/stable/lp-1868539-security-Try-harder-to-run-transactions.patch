@@ -1,0 +1,97 @@
+From ea903036fa8d2333edb74b617416416dd75be533 Mon Sep 17 00:00:00 2001
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Wed, 18 Mar 2020 10:18:46 +0100
+Subject: [PATCH] security: Try harder to run transactions
+
+When a QEMU process dies in the middle of a hotplug, then we fail
+to restore the seclabels on the device. The problem is that if
+the thread doing hotplug locks the domain object first and thus
+blocks the thread that wants to do qemuProcessStop(), the
+seclabel cleanup code will see vm->pid still set and mount
+namespace used and therefore try to enter the namespace
+represented by the PID. But the PID is gone really and thus
+entering will fail and no restore is done. What we can do is to
+try enter the namespace (if requested to do so) but if entering
+fails, fall back to no NS mode.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1814481
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Pavel Mores <pmores@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=ea903036fa
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ src/security/security_dac.c     | 16 ++++++++++++----
+ src/security/security_selinux.c | 16 ++++++++++++----
+ 2 files changed, 24 insertions(+), 8 deletions(-)
+
+diff --git a/src/security/security_dac.c b/src/security/security_dac.c
+index 9046b51004..11fff63bc7 100644
+--- a/src/security/security_dac.c
++++ b/src/security/security_dac.c
+@@ -640,15 +640,23 @@ virSecurityDACTransactionCommit(virSecurityManagerPtr mgr G_GNUC_UNUSED,
+ 
+     list->lock = lock;
+ 
++    if (pid != -1) {
++        rc = virProcessRunInMountNamespace(pid,
++                                           virSecurityDACTransactionRun,
++                                           list);
++        if (rc < 0) {
++            if (virGetLastErrorCode() == VIR_ERR_SYSTEM_ERROR)
++                pid = -1;
++            else
++                goto cleanup;
++        }
++    }
++
+     if (pid == -1) {
+         if (lock)
+             rc = virProcessRunInFork(virSecurityDACTransactionRun, list);
+         else
+             rc = virSecurityDACTransactionRun(pid, list);
+-    } else {
+-        rc = virProcessRunInMountNamespace(pid,
+-                                           virSecurityDACTransactionRun,
+-                                           list);
+     }
+ 
+     if (rc < 0)
+diff --git a/src/security/security_selinux.c b/src/security/security_selinux.c
+index c94f31727c..8aeb6e45a5 100644
+--- a/src/security/security_selinux.c
++++ b/src/security/security_selinux.c
+@@ -1163,15 +1163,23 @@ virSecuritySELinuxTransactionCommit(virSecurityManagerPtr mgr G_GNUC_UNUSED,
+ 
+     list->lock = lock;
+ 
++    if (pid != -1) {
++        rc = virProcessRunInMountNamespace(pid,
++                                           virSecuritySELinuxTransactionRun,
++                                           list);
++        if (rc < 0) {
++            if (virGetLastErrorCode() == VIR_ERR_SYSTEM_ERROR)
++                pid = -1;
++            else
++                goto cleanup;
++        }
++    }
++
+     if (pid == -1) {
+         if (lock)
+             rc = virProcessRunInFork(virSecuritySELinuxTransactionRun, list);
+         else
+             rc = virSecuritySELinuxTransactionRun(pid, list);
+-    } else {
+-        rc = virProcessRunInMountNamespace(pid,
+-                                           virSecuritySELinuxTransactionRun,
+-                                           list);
+     }
+ 
+     if (rc < 0)
+-- 
+2.25.1
+

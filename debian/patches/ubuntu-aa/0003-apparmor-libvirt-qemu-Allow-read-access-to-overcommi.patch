@@ -1,0 +1,30 @@
+From 0631bc4d4a3758319d2c7e61a26c32dbfdf6b07a Mon Sep 17 00:00:00 2001
+From: Jamie Strandboge <jamie@ubuntu.com>
+Date: Tue, 23 May 2017 17:15:01 +0200
+Subject: [PATCH 03/33] apparmor, libvirt-qemu: Allow read access to
+ overcommit_memory
+
+Allow qemu to read @{PROC}/sys/vm/overcommit_memory.
+
+Forwarded: no (part of continuous upstreaming effort)
+Signed-off-by: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Signed-off-by: Stefan Bader <stefan.bader@canonical.com>
+---
+ src/security/apparmor/libvirt-qemu | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/security/apparmor/libvirt-qemu b/src/security/apparmor/libvirt-qemu
+index 899bf6c..e990ab4 100644
+--- a/src/security/apparmor/libvirt-qemu
++++ b/src/security/apparmor/libvirt-qemu
+@@ -26,6 +26,7 @@
+   # only modify its comm value or those in its thread group.
+   owner @{PROC}/@{pid}/task/@{tid}/comm rw,
+   @{PROC}/sys/kernel/cap_last_cap r,
++  @{PROC}/sys/vm/overcommit_memory r,
+ 
+   # For hostdev access. The actual devices will be added dynamically
+   /sys/bus/usb/devices/ r,
+-- 
+2.7.4
+

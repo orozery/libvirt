@@ -25,13 +25,22 @@ case "$1" in
     		delgroup libvirt >/dev/null || true
 	fi
 
+    	if getent group libvirt-qemu >/dev/null; then
+    		delgroup libvirt-qemu >/dev/null || true
+	fi
     	if getent passwd libvirt-qemu >/dev/null; then
     		deluser libvirt-qemu >/dev/null || true
 	fi
 
-    	if getent group libvirt-qemu >/dev/null; then
-    		delgroup libvirt-qemu >/dev/null || true
-	fi
+    # a running libvirt-dnsmasq will break these removals
+    # yet the lifecycle of the network is non-related to the pkg purge
+    # Therefore ignore errors on these removals, better leave a user than break
+    if getent group libvirt-dnsmasq >/dev/null; then
+        delgroup libvirt-dnsmasq --system 2>/dev/null >/dev/null || true
+    fi
+    if getent passwd libvirt-dnsmasq >/dev/null; then
+        deluser libvirt-dnsmasq --system 2>/dev/null >/dev/null || true
+    fi
 
 	# Clean up logs and cached capabilities
 	rm -rf /var/log/libvirt \
@@ -51,8 +60,21 @@ case "$1" in
 		   /var/cache/libvirt/qemu; do
 	    [ ! -d $dir ] || rmdir --ignore-fail-on-non-empty $dir
 	done
+
+    # Remove the link set up by postinst
+    rm -f /etc/libvirt/qemu/networks/autostart/default.xml
+
     ;;
-    remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+    remove)
+        if [ -L /etc/dnsmasq.d/libvirt-daemon ]; then
+            echo "Removing libvirt-daemon dnsmasq configuration"
+            rm -f /etc/dnsmasq.d/libvirt-daemon 2>/dev/null || true
+
+            # Try to restart a potential system wide dnsmasq
+            invoke-rc.d dnsmasq restart 2>/dev/null || true
+        fi
+    ;;
+    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
     ;;
 
     *)

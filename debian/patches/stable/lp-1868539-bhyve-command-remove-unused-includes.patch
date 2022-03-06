@@ -1,0 +1,41 @@
+From 6801ad16241ef8c45a57e00e0ff70e60c7c63044 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Sun, 23 Feb 2020 14:33:30 +0100
+Subject: [PATCH] bhyve: command: remove unused includes
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+These were needed for virBhyveTapGetRealDeviceName
+but were not deleted after the function was moved
+to src/util.
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Fixes: a1bd8d2546c3e469f6a5ce119fad7da1cd473db5
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=6801ad1624
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ src/bhyve/bhyve_command.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/src/bhyve/bhyve_command.c b/src/bhyve/bhyve_command.c
+index 2df7b60115..03bb99d496 100644
+--- a/src/bhyve/bhyve_command.c
++++ b/src/bhyve/bhyve_command.c
+@@ -21,10 +21,6 @@
+ 
+ #include <config.h>
+ 
+-#include <sys/types.h>
+-#include <net/if.h>
+-#include <net/if_tap.h>
+-
+ #include "bhyve_capabilities.h"
+ #include "bhyve_command.h"
+ #include "bhyve_domain.h"
+-- 
+2.25.1
+

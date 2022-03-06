@@ -1,0 +1,70 @@
+From e0244a786db265647ab6c1c37ca3852876e4b0a3 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 11:32:09 +0100
+Subject: [PATCH] cpu_x86: Use g_auto* in virCPUx86Update
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=e0244a786d
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 0300bd08da..0408bb5638 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -2853,9 +2853,8 @@ static int
+ virCPUx86Update(virCPUDefPtr guest,
+                 const virCPUDef *host)
+ {
+-    virCPUx86ModelPtr model = NULL;
++    g_autoptr(virCPUx86Model) model = NULL;
+     virCPUx86MapPtr map;
+-    int ret = -1;
+     size_t i;
+ 
+     if (!host) {
+@@ -2868,14 +2867,14 @@ virCPUx86Update(virCPUDefPtr guest,
+         return -1;
+ 
+     if (!(model = x86ModelFromCPU(host, map, -1)))
+-        goto cleanup;
++        return -1;
+ 
+     for (i = 0; i < guest->nfeatures; i++) {
+         if (guest->features[i].policy == VIR_CPU_FEATURE_OPTIONAL) {
+             int supported = x86FeatureInData(guest->features[i].name,
+                                              &model->data, map);
+             if (supported < 0)
+-                goto cleanup;
++                return -1;
+             else if (supported)
+                 guest->features[i].policy = VIR_CPU_FEATURE_REQUIRE;
+             else
+@@ -2885,13 +2884,9 @@ virCPUx86Update(virCPUDefPtr guest,
+ 
+     if (guest->mode == VIR_CPU_MODE_HOST_MODEL ||
+         guest->match == VIR_CPU_MATCH_MINIMUM)
+-        ret = x86UpdateHostModel(guest, host);
+-    else
+-        ret = 0;
++        return x86UpdateHostModel(guest, host);
+ 
+- cleanup:
+-    x86ModelFree(model);
+-    return ret;
++    return 0;
+ }
+ 
+ 
+-- 
+2.31.1
+

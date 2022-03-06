@@ -1,0 +1,61 @@
+From 464345e153b805467a22fca4615350e992e6d470 Mon Sep 17 00:00:00 2001
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 30 Jan 2020 14:57:56 +0100
+Subject: [PATCH] qemuMigrationCookieAddNBD: Move monitor call out of the loop
+
+The data is gathered only once so we can move the whole block which
+fetches the data out of the loop and get rid of the logic which
+prevents multiple calls.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=464345e153
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1929202
+Last-Update: 2021-07-20
+
+---
+ src/qemu/qemu_migration_cookie.c | 23 +++++++++--------------
+ 1 file changed, 9 insertions(+), 14 deletions(-)
+
+diff --git a/src/qemu/qemu_migration_cookie.c b/src/qemu/qemu_migration_cookie.c
+index 1c3de13983..33ab6cb7a5 100644
+--- a/src/qemu/qemu_migration_cookie.c
++++ b/src/qemu/qemu_migration_cookie.c
+@@ -472,24 +472,19 @@ qemuMigrationCookieAddNBD(qemuMigrationCookiePtr mig,
+     mig->nbd->disks = g_new0(struct qemuMigrationCookieNBDDisk, vm->def->ndisks);
+     mig->nbd->ndisks = 0;
+ 
++    if (!(stats = virHashCreate(10, virHashValueFree)))
++        goto cleanup;
++
++    if (qemuDomainObjEnterMonitorAsync(driver, vm, priv->job.asyncJob) < 0)
++        goto cleanup;
++    rc = qemuMonitorBlockStatsUpdateCapacity(priv->mon, stats, false);
++    if (qemuDomainObjExitMonitor(driver, vm) < 0 || rc < 0)
++        goto cleanup;
++
+     for (i = 0; i < vm->def->ndisks; i++) {
+         virDomainDiskDefPtr disk = vm->def->disks[i];
+         qemuBlockStats *entry;
+ 
+-        if (!stats) {
+-            if (!(stats = virHashCreate(10, virHashValueFree)))
+-                goto cleanup;
+-
+-            if (qemuDomainObjEnterMonitorAsync(driver, vm,
+-                                               priv->job.asyncJob) < 0)
+-                goto cleanup;
+-            rc = qemuMonitorBlockStatsUpdateCapacity(priv->mon, stats, false);
+-            if (qemuDomainObjExitMonitor(driver, vm) < 0)
+-                goto cleanup;
+-            if (rc < 0)
+-                goto cleanup;
+-        }
+-
+         if (!disk->info.alias ||
+             !(entry = virHashLookup(stats, disk->info.alias)))
+             continue;
+-- 
+2.32.0
+

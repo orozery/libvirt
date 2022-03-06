@@ -1,0 +1,33 @@
+From 5ac6ab2fde63881d3c5cc7372a0d0e59618feb55 Mon Sep 17 00:00:00 2001
+From: Tim Wiederhake <twiederh@redhat.com>
+Date: Mon, 22 Feb 2021 13:20:10 +0100
+Subject: [PATCH] cpumap: Add support for svme-addr-check CPU feature
+
+Signed-off-by: Tim Wiederhake <twiederh@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=5ac6ab2f
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1921880
+Last-Update: 2021-04-07
+
+---
+ src/cpu_map/x86_features.xml | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/cpu_map/x86_features.xml b/src/cpu_map/x86_features.xml
+index b03a6b065d..c43520d08f 100644
+--- a/src/cpu_map/x86_features.xml
++++ b/src/cpu_map/x86_features.xml
+@@ -554,6 +554,9 @@
+   <feature name='pfthreshold'>
+     <cpuid eax_in='0x8000000a' edx='0x00001000'/>
+   </feature>
++  <feature name='svme-addr-check'>
++    <cpuid eax_in='0x8000000a' edx='0x10000000'/>
++  </feature>
+ 
+   <!-- IA32_ARCH_CAPABILITIES features -->
+   <feature name='rdctl-no'>
+-- 
+2.31.1
+

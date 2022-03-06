@@ -1,0 +1,19 @@
+Description: UBUNTU-ONLY: provide a local include to tune libvirt-qemu
+This is the most likely apparmor profile that a user
+wants to tune, so it should have a local include to do
+so without conffile trouble.
+
+Forwarded: no
+Forward-info: Upstream can't guarantee the existance of the includes
+Author: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1786019
+Last-Update: 2018-08-08
+--- a/src/security/apparmor/libvirt-qemu
++++ b/src/security/apparmor/libvirt-qemu
+@@ -226,3 +226,6 @@
+   # required for sasl GSSAPI plugin
+   /etc/gss/mech.d/ r,
+   /etc/gss/mech.d/* r,
++
++  # Site-specific additions and overrides. See local/README for details.
++  #include <local/abstractions/libvirt-qemu>

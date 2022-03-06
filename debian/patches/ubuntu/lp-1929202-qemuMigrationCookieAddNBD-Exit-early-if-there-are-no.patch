@@ -1,0 +1,52 @@
+From bdff9d4513694da8d9b2bb60a1f808fb1c286388 Mon Sep 17 00:00:00 2001
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 30 Jan 2020 14:47:25 +0100
+Subject: [PATCH] qemuMigrationCookieAddNBD: Exit early if there are no disks
+
+Refactor the logic to skip the body of the function if there's nothing
+to do.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=bdff9d4513
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1929202
+Last-Update: 2021-07-20
+
+---
+ src/qemu/qemu_migration_cookie.c | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/qemu/qemu_migration_cookie.c b/src/qemu/qemu_migration_cookie.c
+index 299bf17c9e..73ae815818 100644
+--- a/src/qemu/qemu_migration_cookie.c
++++ b/src/qemu/qemu_migration_cookie.c
+@@ -464,8 +464,13 @@ qemuMigrationCookieAddNBD(qemuMigrationCookiePtr mig,
+     if (VIR_ALLOC(mig->nbd) < 0)
+         return -1;
+ 
+-    if (vm->def->ndisks &&
+-        VIR_ALLOC_N(mig->nbd->disks, vm->def->ndisks) < 0)
++    mig->nbd->port = priv->nbdPort;
++    mig->flags |= QEMU_MIGRATION_COOKIE_NBD;
++
++    if (vm->def->ndisks == 0)
++        return 0;
++
++    if (VIR_ALLOC_N(mig->nbd->disks, vm->def->ndisks) < 0)
+         return -1;
+     mig->nbd->ndisks = 0;
+ 
+@@ -496,9 +501,6 @@ qemuMigrationCookieAddNBD(qemuMigrationCookiePtr mig,
+         mig->nbd->ndisks++;
+     }
+ 
+-    mig->nbd->port = priv->nbdPort;
+-    mig->flags |= QEMU_MIGRATION_COOKIE_NBD;
+-
+     ret = 0;
+  cleanup:
+     virHashFree(stats);
+-- 
+2.32.0
+

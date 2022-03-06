@@ -1,0 +1,47 @@
+From 8f61fd6bf2dc7e1107e010fdc14bab9ecfde43af Mon Sep 17 00:00:00 2001
+From: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Date: Wed, 8 Apr 2020 16:47:58 +0200
+Subject: [PATCH] apparmor: avoid denials on libpmem initialization
+
+With libpmem support compiled into qemu it will trigger the following
+denials on every startup.
+  apparmor="DENIED" operation="open" name="/"
+  apparmor="DENIED" operation="open" name="/sys/bus/nd/devices/"
+
+This is due to [1] that tries to auto-detect if the platform supports
+auto flush for all region.
+
+Once we know all the paths that are potentially needed if this feature
+is really used we can add them conditionally in virt-aa-helper and labelling
+calls in case </pmem> is enabled.
+
+But until then the change here silences the denial warnings seen above.
+
+[1]: https://github.com/pmem/pmdk/blob/master/src/libpmem2/auto_flush_linux.c#L131
+
+Bug: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1871354
+
+Signed-off-by: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Acked-by: Jamie Strandboge <jamie@canonical.com>
+
+Origin: backport, https://libvirt.org/git/?p=libvirt.git;a=commit;h=8f61fd6b
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1871354
+Last-Update: 2020-04-15
+
+---
+ src/security/apparmor/libvirt-qemu | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+--- a/src/security/apparmor/libvirt-qemu
++++ b/src/security/apparmor/libvirt-qemu
+@@ -259,5 +259,10 @@
+   /etc/gss/mech.d/ r,
+   /etc/gss/mech.d/* r,
+ 
++  # required by libpmem init to fts_open()/fts_read() the symlinks in
++  # /sys/bus/nd/devices
++  / r, # harmless on any lsb compliant system
++  /sys/bus/nd/devices/{,**/} r,
++
+   # Site-specific additions and overrides. See local/README for details.
+   #include <local/abstractions/libvirt-qemu>

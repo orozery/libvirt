@@ -1,0 +1,43 @@
+From 1b5bf7d540ce6998418192f13c2638d7e0d4652f Mon Sep 17 00:00:00 2001
+From: Jin Yan <jinyan12@huawei.com>
+Date: Thu, 13 Aug 2020 11:37:56 +0800
+Subject: [PATCH] virnetserver: fix some memory leaks in
+ virNetTLSContextReloadForServer
+
+These leaks were introduced in commit 15d280fa97b0, use g_autofree for all
+cert_path pointers.
+
+Signed-off-by: Jin Yan <jinyan12@huawei.com>
+Reviewed-by: Daniel Henrique Barboza <danielhb413@gmail.com>
+Reviewed-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=1b5bf7d540
+Last-Update: 2022-02-17
+
+---
+ src/rpc/virnettlscontext.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/rpc/virnettlscontext.c b/src/rpc/virnettlscontext.c
+index 168f3010ae..37564db14e 100644
+--- a/src/rpc/virnettlscontext.c
++++ b/src/rpc/virnettlscontext.c
+@@ -921,10 +921,10 @@ int virNetTLSContextReloadForServer(virNetTLSContextPtr ctxt,
+ {
+     gnutls_certificate_credentials_t x509credBak;
+     int err;
+-    char *cacert = NULL;
+-    char *cacrl = NULL;
+-    char *cert = NULL;
+-    char *key = NULL;
++    g_autofree char *cacert = NULL;
++    g_autofree char *cacrl = NULL;
++    g_autofree char *cert = NULL;
++    g_autofree char *key = NULL;
+ 
+     x509credBak = ctxt->x509cred;
+     ctxt->x509cred = NULL;
+-- 
+2.35.0
+

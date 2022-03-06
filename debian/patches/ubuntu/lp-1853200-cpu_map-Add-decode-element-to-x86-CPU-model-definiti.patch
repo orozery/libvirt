@@ -1,0 +1,741 @@
+From 39a5a48a508a643da40acabd5f364396da248b69 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 18 Mar 2020 11:13:20 +0100
+Subject: [PATCH] cpu_map: Add <decode> element to x86 CPU model definitions
+
+The element specifies whether a particular CPU model can be used when
+creating a CPU definition from raw CPUID/MSR data. The @host attribute
+determines whether the CPU model can be used (host='on') for creating
+CPU definition for host capabilities. Usability of the model for domain
+capabilities and host-model CPU definitions is controlled by the @guest
+attribute.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=f4914045c2
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1853200
+Last-Update: 2020-03-23
+
+---
+ src/cpu/cpu_x86.c                             | 43 +++++++++++++++++++
+ src/cpu_map/x86_486.xml                       |  1 +
+ src/cpu_map/x86_Broadwell-IBRS.xml            |  1 +
+ src/cpu_map/x86_Broadwell-noTSX-IBRS.xml      |  1 +
+ src/cpu_map/x86_Broadwell-noTSX.xml           |  1 +
+ src/cpu_map/x86_Broadwell.xml                 |  1 +
+ src/cpu_map/x86_Cascadelake-Server-noTSX.xml  |  1 +
+ src/cpu_map/x86_Cascadelake-Server.xml        |  1 +
+ src/cpu_map/x86_Conroe.xml                    |  1 +
+ src/cpu_map/x86_Dhyana.xml                    |  1 +
+ src/cpu_map/x86_EPYC-IBPB.xml                 |  1 +
+ src/cpu_map/x86_EPYC.xml                      |  1 +
+ src/cpu_map/x86_Haswell-IBRS.xml              |  1 +
+ src/cpu_map/x86_Haswell-noTSX-IBRS.xml        |  1 +
+ src/cpu_map/x86_Haswell-noTSX.xml             |  1 +
+ src/cpu_map/x86_Haswell.xml                   |  1 +
+ src/cpu_map/x86_Icelake-Client-noTSX.xml      |  1 +
+ src/cpu_map/x86_Icelake-Client.xml            |  1 +
+ src/cpu_map/x86_Icelake-Server-noTSX.xml      |  1 +
+ src/cpu_map/x86_Icelake-Server.xml            |  1 +
+ src/cpu_map/x86_IvyBridge-IBRS.xml            |  1 +
+ src/cpu_map/x86_IvyBridge.xml                 |  1 +
+ src/cpu_map/x86_Nehalem-IBRS.xml              |  1 +
+ src/cpu_map/x86_Nehalem.xml                   |  1 +
+ src/cpu_map/x86_Opteron_G1.xml                |  1 +
+ src/cpu_map/x86_Opteron_G2.xml                |  1 +
+ src/cpu_map/x86_Opteron_G3.xml                |  1 +
+ src/cpu_map/x86_Opteron_G4.xml                |  1 +
+ src/cpu_map/x86_Opteron_G5.xml                |  1 +
+ src/cpu_map/x86_Penryn.xml                    |  1 +
+ src/cpu_map/x86_SandyBridge-IBRS.xml          |  1 +
+ src/cpu_map/x86_SandyBridge.xml               |  1 +
+ src/cpu_map/x86_Skylake-Client-IBRS.xml       |  1 +
+ src/cpu_map/x86_Skylake-Client-noTSX-IBRS.xml |  1 +
+ src/cpu_map/x86_Skylake-Client.xml            |  1 +
+ src/cpu_map/x86_Skylake-Server-IBRS.xml       |  1 +
+ src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml |  1 +
+ src/cpu_map/x86_Skylake-Server.xml            |  1 +
+ src/cpu_map/x86_Westmere-IBRS.xml             |  1 +
+ src/cpu_map/x86_Westmere.xml                  |  1 +
+ src/cpu_map/x86_athlon.xml                    |  1 +
+ src/cpu_map/x86_core2duo.xml                  |  1 +
+ src/cpu_map/x86_coreduo.xml                   |  1 +
+ src/cpu_map/x86_cpu64-rhel5.xml               |  1 +
+ src/cpu_map/x86_cpu64-rhel6.xml               |  1 +
+ src/cpu_map/x86_kvm32.xml                     |  1 +
+ src/cpu_map/x86_kvm64.xml                     |  1 +
+ src/cpu_map/x86_n270.xml                      |  1 +
+ src/cpu_map/x86_pentium.xml                   |  1 +
+ src/cpu_map/x86_pentium2.xml                  |  1 +
+ src/cpu_map/x86_pentium3.xml                  |  1 +
+ src/cpu_map/x86_pentiumpro.xml                |  1 +
+ src/cpu_map/x86_phenom.xml                    |  1 +
+ src/cpu_map/x86_qemu32.xml                    |  1 +
+ src/cpu_map/x86_qemu64.xml                    |  1 +
+ 55 files changed, 97 insertions(+)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 7a8a2e3f3b..366337ef57 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -125,6 +125,8 @@ typedef struct _virCPUx86Model virCPUx86Model;
+ typedef virCPUx86Model *virCPUx86ModelPtr;
+ struct _virCPUx86Model {
+     char *name;
++    bool decodeHost;
++    bool decodeGuest;
+     virCPUx86VendorPtr vendor;
+     size_t nsignatures;
+     uint32_t *signatures;
+@@ -1347,6 +1349,44 @@ x86ModelCompare(virCPUx86ModelPtr model1,
+ }
+ 
+ 
++static int
++x86ModelParseDecode(virCPUx86ModelPtr model,
++                    xmlXPathContextPtr ctxt)
++{
++    g_autofree char *host = NULL;
++    g_autofree char *guest = NULL;
++    int val;
++
++    if ((host = virXPathString("string(./decode/@host)", ctxt)))
++        val = virTristateSwitchTypeFromString(host);
++    else
++        val = VIR_TRISTATE_SWITCH_ABSENT;
++
++    if (val <= 0) {
++        virReportError(VIR_ERR_INTERNAL_ERROR,
++                       _("invalid or missing decode/host attribute in CPU model %s"),
++                       model->name);
++        return -1;
++    }
++    model->decodeHost = val == VIR_TRISTATE_SWITCH_ON;
++
++    if ((guest = virXPathString("string(./decode/@guest)", ctxt)))
++        val = virTristateSwitchTypeFromString(guest);
++    else
++        val = VIR_TRISTATE_SWITCH_ABSENT;
++
++    if (val <= 0) {
++        virReportError(VIR_ERR_INTERNAL_ERROR,
++                       _("invalid or missing decode/guest attribute in CPU model %s"),
++                       model->name);
++        return -1;
++    }
++    model->decodeGuest = val == VIR_TRISTATE_SWITCH_ON;
++
++    return 0;
++}
++
++
+ static int
+ x86ModelParseAncestor(virCPUx86ModelPtr model,
+                       xmlXPathContextPtr ctxt,
+@@ -1521,6 +1561,9 @@ x86ModelParse(xmlXPathContextPtr ctxt,
+ 
+     model->name = g_strdup(name);
+ 
++    if (x86ModelParseDecode(model, ctxt) < 0)
++        goto cleanup;
++
+     if (x86ModelParseAncestor(model, ctxt, map) < 0)
+         goto cleanup;
+ 
+diff --git a/src/cpu_map/x86_486.xml b/src/cpu_map/x86_486.xml
+index 61fa3797e8..d05b277392 100644
+--- a/src/cpu_map/x86_486.xml
++++ b/src/cpu_map/x86_486.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='486'>
++    <decode host='on' guest='on'/>
+     <feature name='fpu'/>
+     <feature name='pse'/>
+     <feature name='vme'/>
+diff --git a/src/cpu_map/x86_Broadwell-IBRS.xml b/src/cpu_map/x86_Broadwell-IBRS.xml
+index 4600cacec0..9033d5fcd5 100644
+--- a/src/cpu_map/x86_Broadwell-IBRS.xml
++++ b/src/cpu_map/x86_Broadwell-IBRS.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Broadwell-IBRS'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='61'/> <!-- 0306d0 -->
+     <signature family='6' model='71'/> <!-- 040670 -->
+     <signature family='6' model='79'/> <!-- 0406f0 -->
+diff --git a/src/cpu_map/x86_Broadwell-noTSX-IBRS.xml b/src/cpu_map/x86_Broadwell-noTSX-IBRS.xml
+index b3fc0b726a..c044b60e36 100644
+--- a/src/cpu_map/x86_Broadwell-noTSX-IBRS.xml
++++ b/src/cpu_map/x86_Broadwell-noTSX-IBRS.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Broadwell-noTSX-IBRS'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='61'/> <!-- 0306d0 -->
+     <signature family='6' model='71'/> <!-- 040670 -->
+     <signature family='6' model='79'/> <!-- 0406f0 -->
+diff --git a/src/cpu_map/x86_Broadwell-noTSX.xml b/src/cpu_map/x86_Broadwell-noTSX.xml
+index ad932d0853..637f29ba1c 100644
+--- a/src/cpu_map/x86_Broadwell-noTSX.xml
++++ b/src/cpu_map/x86_Broadwell-noTSX.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Broadwell-noTSX'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='61'/> <!-- 0306d0 -->
+     <signature family='6' model='71'/> <!-- 040670 -->
+     <signature family='6' model='79'/> <!-- 0406f0 -->
+diff --git a/src/cpu_map/x86_Broadwell.xml b/src/cpu_map/x86_Broadwell.xml
+index 6de9227322..82939a4509 100644
+--- a/src/cpu_map/x86_Broadwell.xml
++++ b/src/cpu_map/x86_Broadwell.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Broadwell'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='61'/> <!-- 0306d0 -->
+     <signature family='6' model='71'/> <!-- 040670 -->
+     <signature family='6' model='79'/> <!-- 0406f0 -->
+diff --git a/src/cpu_map/x86_Cascadelake-Server-noTSX.xml b/src/cpu_map/x86_Cascadelake-Server-noTSX.xml
+index d24415ebce..5adea664e9 100644
+--- a/src/cpu_map/x86_Cascadelake-Server-noTSX.xml
++++ b/src/cpu_map/x86_Cascadelake-Server-noTSX.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Cascadelake-Server-noTSX'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='85'/> <!-- 050654 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_Cascadelake-Server.xml b/src/cpu_map/x86_Cascadelake-Server.xml
+index b69ac198b6..d7ec42f57e 100644
+--- a/src/cpu_map/x86_Cascadelake-Server.xml
++++ b/src/cpu_map/x86_Cascadelake-Server.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Cascadelake-Server'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='85'/> <!-- 050654 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_Conroe.xml b/src/cpu_map/x86_Conroe.xml
+index 89fe0ad2cf..4cacee6142 100644
+--- a/src/cpu_map/x86_Conroe.xml
++++ b/src/cpu_map/x86_Conroe.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Conroe'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='15'/> <!-- 0006f0 -->
+     <signature family='6' model='22'/> <!-- 010660 -->
+     <vendor name='Intel'/>
+diff --git a/src/cpu_map/x86_Dhyana.xml b/src/cpu_map/x86_Dhyana.xml
+index cbc8020a94..689daf8649 100644
+--- a/src/cpu_map/x86_Dhyana.xml
++++ b/src/cpu_map/x86_Dhyana.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Dhyana'>
++    <decode host='on' guest='on'/>
+     <signature family='24' model='0'/> <!-- 900f00 -->
+     <vendor name='Hygon'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_EPYC-IBPB.xml b/src/cpu_map/x86_EPYC-IBPB.xml
+index 283697ebd1..983c5f4445 100644
+--- a/src/cpu_map/x86_EPYC-IBPB.xml
++++ b/src/cpu_map/x86_EPYC-IBPB.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='EPYC-IBPB'>
++    <decode host='on' guest='on'/>
+     <signature family='23' model='1'/> <!-- 800f10 -->
+     <vendor name='AMD'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_EPYC.xml b/src/cpu_map/x86_EPYC.xml
+index f0601392fd..3ebba9f4ed 100644
+--- a/src/cpu_map/x86_EPYC.xml
++++ b/src/cpu_map/x86_EPYC.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='EPYC'>
++    <decode host='on' guest='on'/>
+     <signature family='23' model='1'/> <!-- 800f10 -->
+     <vendor name='AMD'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_Haswell-IBRS.xml b/src/cpu_map/x86_Haswell-IBRS.xml
+index 4f86db838f..0ffe2bae0d 100644
+--- a/src/cpu_map/x86_Haswell-IBRS.xml
++++ b/src/cpu_map/x86_Haswell-IBRS.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Haswell-IBRS'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='60'/> <!-- 0306c0 -->
+     <signature family='6' model='63'/> <!-- 0306f0 -->
+     <signature family='6' model='69'/> <!-- 040650 -->
+diff --git a/src/cpu_map/x86_Haswell-noTSX-IBRS.xml b/src/cpu_map/x86_Haswell-noTSX-IBRS.xml
+index 47318be6d5..75d709c009 100644
+--- a/src/cpu_map/x86_Haswell-noTSX-IBRS.xml
++++ b/src/cpu_map/x86_Haswell-noTSX-IBRS.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Haswell-noTSX-IBRS'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='60'/> <!-- 0306c0 -->
+     <signature family='6' model='63'/> <!-- 0306f0 -->
+     <signature family='6' model='69'/> <!-- 040650 -->
+diff --git a/src/cpu_map/x86_Haswell-noTSX.xml b/src/cpu_map/x86_Haswell-noTSX.xml
+index efd10c47de..b0a0faa856 100644
+--- a/src/cpu_map/x86_Haswell-noTSX.xml
++++ b/src/cpu_map/x86_Haswell-noTSX.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Haswell-noTSX'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='60'/> <!-- 0306c0 -->
+     <signature family='6' model='63'/> <!-- 0306f0 -->
+     <signature family='6' model='69'/> <!-- 040650 -->
+diff --git a/src/cpu_map/x86_Haswell.xml b/src/cpu_map/x86_Haswell.xml
+index ac358d7967..ee16b30f19 100644
+--- a/src/cpu_map/x86_Haswell.xml
++++ b/src/cpu_map/x86_Haswell.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Haswell'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='60'/> <!-- 0306c0 -->
+     <signature family='6' model='63'/> <!-- 0306f0 -->
+     <signature family='6' model='69'/> <!-- 040650 -->
+diff --git a/src/cpu_map/x86_Icelake-Client-noTSX.xml b/src/cpu_map/x86_Icelake-Client-noTSX.xml
+index cd51881f40..540732af6f 100644
+--- a/src/cpu_map/x86_Icelake-Client-noTSX.xml
++++ b/src/cpu_map/x86_Icelake-Client-noTSX.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Icelake-Client-noTSX'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='126'/> <!-- 0706e0 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_Icelake-Client.xml b/src/cpu_map/x86_Icelake-Client.xml
+index fbd53bbe11..5cf32e91fa 100644
+--- a/src/cpu_map/x86_Icelake-Client.xml
++++ b/src/cpu_map/x86_Icelake-Client.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Icelake-Client'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='126'/> <!-- 0706e0 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_Icelake-Server-noTSX.xml b/src/cpu_map/x86_Icelake-Server-noTSX.xml
+index 538c656712..5a53da23c7 100644
+--- a/src/cpu_map/x86_Icelake-Server-noTSX.xml
++++ b/src/cpu_map/x86_Icelake-Server-noTSX.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Icelake-Server-noTSX'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='134'/> <!-- 080660 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_Icelake-Server.xml b/src/cpu_map/x86_Icelake-Server.xml
+index a565371977..367ade7240 100644
+--- a/src/cpu_map/x86_Icelake-Server.xml
++++ b/src/cpu_map/x86_Icelake-Server.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Icelake-Server'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='134'/> <!-- 080660 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_IvyBridge-IBRS.xml b/src/cpu_map/x86_IvyBridge-IBRS.xml
+index e0f2adfa82..430bc3232d 100644
+--- a/src/cpu_map/x86_IvyBridge-IBRS.xml
++++ b/src/cpu_map/x86_IvyBridge-IBRS.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='IvyBridge-IBRS'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='58'/> <!-- 0306a0 -->
+     <signature family='6' model='62'/> <!-- 0306e0 -->
+     <vendor name='Intel'/>
+diff --git a/src/cpu_map/x86_IvyBridge.xml b/src/cpu_map/x86_IvyBridge.xml
+index 16213dbc62..eaf5d02e82 100644
+--- a/src/cpu_map/x86_IvyBridge.xml
++++ b/src/cpu_map/x86_IvyBridge.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='IvyBridge'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='58'/> <!-- 0306a0 -->
+     <signature family='6' model='62'/> <!-- 0306e0 -->
+     <vendor name='Intel'/>
+diff --git a/src/cpu_map/x86_Nehalem-IBRS.xml b/src/cpu_map/x86_Nehalem-IBRS.xml
+index 8cc19eff03..00d0d2fe51 100644
+--- a/src/cpu_map/x86_Nehalem-IBRS.xml
++++ b/src/cpu_map/x86_Nehalem-IBRS.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Nehalem-IBRS'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='26'/> <!-- 0106a0 -->
+     <signature family='6' model='30'/> <!-- 0106e0 -->
+     <signature family='6' model='31'/> <!-- 0106f0 -->
+diff --git a/src/cpu_map/x86_Nehalem.xml b/src/cpu_map/x86_Nehalem.xml
+index 530e5e8a0d..9968001fe7 100644
+--- a/src/cpu_map/x86_Nehalem.xml
++++ b/src/cpu_map/x86_Nehalem.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Nehalem'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='26'/> <!-- 0106a0 -->
+     <signature family='6' model='30'/> <!-- 0106e0 -->
+     <signature family='6' model='31'/> <!-- 0106f0 -->
+diff --git a/src/cpu_map/x86_Opteron_G1.xml b/src/cpu_map/x86_Opteron_G1.xml
+index 73cf1de71e..57648ca93f 100644
+--- a/src/cpu_map/x86_Opteron_G1.xml
++++ b/src/cpu_map/x86_Opteron_G1.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Opteron_G1'>
++    <decode host='on' guest='on'/>
+     <signature family='15' model='6'/> <!-- 100e60 -->
+     <vendor name='AMD'/>
+     <feature name='apic'/>
+diff --git a/src/cpu_map/x86_Opteron_G2.xml b/src/cpu_map/x86_Opteron_G2.xml
+index 342105730e..db961b0067 100644
+--- a/src/cpu_map/x86_Opteron_G2.xml
++++ b/src/cpu_map/x86_Opteron_G2.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Opteron_G2'>
++    <decode host='on' guest='on'/>
+     <signature family='15' model='6'/> <!-- 100e60 -->
+     <vendor name='AMD'/>
+     <feature name='apic'/>
+diff --git a/src/cpu_map/x86_Opteron_G3.xml b/src/cpu_map/x86_Opteron_G3.xml
+index 7fbf8ac9e9..dab59d4f82 100644
+--- a/src/cpu_map/x86_Opteron_G3.xml
++++ b/src/cpu_map/x86_Opteron_G3.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Opteron_G3'>
++    <decode host='on' guest='on'/>
+     <signature family='15' model='6'/> <!-- 100e60 -->
+     <vendor name='AMD'/>
+     <feature name='abm'/>
+diff --git a/src/cpu_map/x86_Opteron_G4.xml b/src/cpu_map/x86_Opteron_G4.xml
+index 463b3676a0..a7fc8d5828 100644
+--- a/src/cpu_map/x86_Opteron_G4.xml
++++ b/src/cpu_map/x86_Opteron_G4.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Opteron_G4'>
++    <decode host='on' guest='on'/>
+     <signature family='21' model='1'/> <!-- 600f10 -->
+     <vendor name='AMD'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_Opteron_G5.xml b/src/cpu_map/x86_Opteron_G5.xml
+index 0f8fe32c87..ff775bdcef 100644
+--- a/src/cpu_map/x86_Opteron_G5.xml
++++ b/src/cpu_map/x86_Opteron_G5.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Opteron_G5'>
++    <decode host='on' guest='on'/>
+     <signature family='21' model='2'/> <!-- 600f20 -->
+     <vendor name='AMD'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_Penryn.xml b/src/cpu_map/x86_Penryn.xml
+index 279bb05570..29d4cd635b 100644
+--- a/src/cpu_map/x86_Penryn.xml
++++ b/src/cpu_map/x86_Penryn.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Penryn'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='23'/> <!-- 010670 -->
+     <signature family='6' model='29'/> <!-- 0106d0 -->
+     <vendor name='Intel'/>
+diff --git a/src/cpu_map/x86_SandyBridge-IBRS.xml b/src/cpu_map/x86_SandyBridge-IBRS.xml
+index 7d1342ec6f..fbdb4f2bf6 100644
+--- a/src/cpu_map/x86_SandyBridge-IBRS.xml
++++ b/src/cpu_map/x86_SandyBridge-IBRS.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='SandyBridge-IBRS'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='42'/> <!-- 0206a0 -->
+     <signature family='6' model='45'/> <!-- 0206d0 -->
+     <vendor name='Intel'/>
+diff --git a/src/cpu_map/x86_SandyBridge.xml b/src/cpu_map/x86_SandyBridge.xml
+index 48e4ac8082..7c85ed42df 100644
+--- a/src/cpu_map/x86_SandyBridge.xml
++++ b/src/cpu_map/x86_SandyBridge.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='SandyBridge'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='42'/> <!-- 0206a0 -->
+     <signature family='6' model='45'/> <!-- 0206d0 -->
+     <vendor name='Intel'/>
+diff --git a/src/cpu_map/x86_Skylake-Client-IBRS.xml b/src/cpu_map/x86_Skylake-Client-IBRS.xml
+index 4440313fc4..5709e7c2f9 100644
+--- a/src/cpu_map/x86_Skylake-Client-IBRS.xml
++++ b/src/cpu_map/x86_Skylake-Client-IBRS.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Skylake-Client-IBRS'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='94'/> <!-- 0506e0 -->
+     <signature family='6' model='78'/> <!-- 0406e0 -->
+     <!-- These are Kaby Lake and Coffee Lake successors to Skylake,
+diff --git a/src/cpu_map/x86_Skylake-Client-noTSX-IBRS.xml b/src/cpu_map/x86_Skylake-Client-noTSX-IBRS.xml
+index 3d2976692f..0c2f1e6ac4 100644
+--- a/src/cpu_map/x86_Skylake-Client-noTSX-IBRS.xml
++++ b/src/cpu_map/x86_Skylake-Client-noTSX-IBRS.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Skylake-Client-noTSX-IBRS'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='94'/> <!-- 0506e0 -->
+     <signature family='6' model='78'/> <!-- 0406e0 -->
+     <!-- These are Kaby Lake and Coffee Lake successors to Skylake,
+diff --git a/src/cpu_map/x86_Skylake-Client.xml b/src/cpu_map/x86_Skylake-Client.xml
+index 1053fa4a04..14cd57e176 100644
+--- a/src/cpu_map/x86_Skylake-Client.xml
++++ b/src/cpu_map/x86_Skylake-Client.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Skylake-Client'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='94'/> <!-- 0506e0 -->
+     <signature family='6' model='78'/> <!-- 0406e0 -->
+     <!-- These are Kaby Lake and Coffee Lake successors to Skylake,
+diff --git a/src/cpu_map/x86_Skylake-Server-IBRS.xml b/src/cpu_map/x86_Skylake-Server-IBRS.xml
+index 71179f9f74..bd6b6457ad 100644
+--- a/src/cpu_map/x86_Skylake-Server-IBRS.xml
++++ b/src/cpu_map/x86_Skylake-Server-IBRS.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Skylake-Server-IBRS'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='85'/> <!-- 050654 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml b/src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml
+index 455a072119..91a206f575 100644
+--- a/src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml
++++ b/src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Skylake-Server-noTSX-IBRS'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='85'/> <!-- 050654 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_Skylake-Server.xml b/src/cpu_map/x86_Skylake-Server.xml
+index 2da69e0dfc..f96875a85f 100644
+--- a/src/cpu_map/x86_Skylake-Server.xml
++++ b/src/cpu_map/x86_Skylake-Server.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Skylake-Server'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='85'/> <!-- 050654 -->
+     <vendor name='Intel'/>
+     <feature name='3dnowprefetch'/>
+diff --git a/src/cpu_map/x86_Westmere-IBRS.xml b/src/cpu_map/x86_Westmere-IBRS.xml
+index 3baf56f47a..c7898f0c22 100644
+--- a/src/cpu_map/x86_Westmere-IBRS.xml
++++ b/src/cpu_map/x86_Westmere-IBRS.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Westmere-IBRS'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='44'/> <!-- 0206c0 -->
+     <vendor name='Intel'/>
+     <feature name='aes'/>
+diff --git a/src/cpu_map/x86_Westmere.xml b/src/cpu_map/x86_Westmere.xml
+index 95c1d690c8..16e4ad6c30 100644
+--- a/src/cpu_map/x86_Westmere.xml
++++ b/src/cpu_map/x86_Westmere.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='Westmere'>
++    <decode host='on' guest='on'/>
+     <signature family='6' model='44'/> <!-- 0206c0 -->
+     <signature family='6' model='47'/> <!-- 0206f0 -->
+     <signature family='6' model='37'/> <!-- 020650 -->
+diff --git a/src/cpu_map/x86_athlon.xml b/src/cpu_map/x86_athlon.xml
+index 0d44508e20..81c43c81e8 100644
+--- a/src/cpu_map/x86_athlon.xml
++++ b/src/cpu_map/x86_athlon.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='athlon'>
++    <decode host='on' guest='on'/>
+     <vendor name='AMD'/>
+     <feature name='3dnow'/>
+     <feature name='3dnowext'/>
+diff --git a/src/cpu_map/x86_core2duo.xml b/src/cpu_map/x86_core2duo.xml
+index 3c9a148f3c..412039fe55 100644
+--- a/src/cpu_map/x86_core2duo.xml
++++ b/src/cpu_map/x86_core2duo.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='core2duo'>
++    <decode host='on' guest='on'/>
+     <vendor name='Intel'/>
+     <feature name='apic'/>
+     <feature name='clflush'/>
+diff --git a/src/cpu_map/x86_coreduo.xml b/src/cpu_map/x86_coreduo.xml
+index 676e846920..e2fda9a1d4 100644
+--- a/src/cpu_map/x86_coreduo.xml
++++ b/src/cpu_map/x86_coreduo.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='coreduo'>
++    <decode host='on' guest='on'/>
+     <vendor name='Intel'/>
+     <feature name='apic'/>
+     <feature name='clflush'/>
+diff --git a/src/cpu_map/x86_cpu64-rhel5.xml b/src/cpu_map/x86_cpu64-rhel5.xml
+index 670a92f274..be6bcdb7a6 100644
+--- a/src/cpu_map/x86_cpu64-rhel5.xml
++++ b/src/cpu_map/x86_cpu64-rhel5.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='cpu64-rhel5'>
++    <decode host='on' guest='on'/>
+     <feature name='apic'/>
+     <feature name='clflush'/>
+     <feature name='cmov'/>
+diff --git a/src/cpu_map/x86_cpu64-rhel6.xml b/src/cpu_map/x86_cpu64-rhel6.xml
+index 3cae0f00c2..c62b1b5575 100644
+--- a/src/cpu_map/x86_cpu64-rhel6.xml
++++ b/src/cpu_map/x86_cpu64-rhel6.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='cpu64-rhel6'>
++    <decode host='on' guest='on'/>
+     <feature name='apic'/>
+     <feature name='clflush'/>
+     <feature name='cmov'/>
+diff --git a/src/cpu_map/x86_kvm32.xml b/src/cpu_map/x86_kvm32.xml
+index 5f08a5e7fc..9dd96d5b56 100644
+--- a/src/cpu_map/x86_kvm32.xml
++++ b/src/cpu_map/x86_kvm32.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='kvm32'>
++    <decode host='on' guest='on'/>
+     <feature name='apic'/>
+     <feature name='clflush'/>
+     <feature name='cmov'/>
+diff --git a/src/cpu_map/x86_kvm64.xml b/src/cpu_map/x86_kvm64.xml
+index 80b24e2a49..185af06f78 100644
+--- a/src/cpu_map/x86_kvm64.xml
++++ b/src/cpu_map/x86_kvm64.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='kvm64'>
++    <decode host='on' guest='on'/>
+     <feature name='apic'/>
+     <feature name='clflush'/>
+     <feature name='cmov'/>
+diff --git a/src/cpu_map/x86_n270.xml b/src/cpu_map/x86_n270.xml
+index cb359d968e..5507d2ea3b 100644
+--- a/src/cpu_map/x86_n270.xml
++++ b/src/cpu_map/x86_n270.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='n270'>
++    <decode host='on' guest='on'/>
+     <vendor name='Intel'/>
+     <feature name='apic'/>
+     <feature name='clflush'/>
+diff --git a/src/cpu_map/x86_pentium.xml b/src/cpu_map/x86_pentium.xml
+index d44c1399b0..f0a8982115 100644
+--- a/src/cpu_map/x86_pentium.xml
++++ b/src/cpu_map/x86_pentium.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='pentium'>
++    <decode host='on' guest='on'/>
+     <feature name='cx8'/>
+     <feature name='de'/>
+     <feature name='fpu'/>
+diff --git a/src/cpu_map/x86_pentium2.xml b/src/cpu_map/x86_pentium2.xml
+index 0d772bad2f..aeba082297 100644
+--- a/src/cpu_map/x86_pentium2.xml
++++ b/src/cpu_map/x86_pentium2.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='pentium2'>
++    <decode host='on' guest='on'/>
+     <feature name='cmov'/>
+     <feature name='cx8'/>
+     <feature name='de'/>
+diff --git a/src/cpu_map/x86_pentium3.xml b/src/cpu_map/x86_pentium3.xml
+index 24eb227c28..ab85d2967f 100644
+--- a/src/cpu_map/x86_pentium3.xml
++++ b/src/cpu_map/x86_pentium3.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='pentium3'>
++    <decode host='on' guest='on'/>
+     <feature name='cmov'/>
+     <feature name='cx8'/>
+     <feature name='de'/>
+diff --git a/src/cpu_map/x86_pentiumpro.xml b/src/cpu_map/x86_pentiumpro.xml
+index 9f7a610a87..b6e061187c 100644
+--- a/src/cpu_map/x86_pentiumpro.xml
++++ b/src/cpu_map/x86_pentiumpro.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='pentiumpro'>
++    <decode host='on' guest='on'/>
+     <feature name='apic'/>
+     <feature name='cmov'/>
+     <feature name='cx8'/>
+diff --git a/src/cpu_map/x86_phenom.xml b/src/cpu_map/x86_phenom.xml
+index 71f004057b..f0f8ece57a 100644
+--- a/src/cpu_map/x86_phenom.xml
++++ b/src/cpu_map/x86_phenom.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='phenom'>
++    <decode host='on' guest='on'/>
+     <vendor name='AMD'/>
+     <feature name='3dnow'/>
+     <feature name='3dnowext'/>
+diff --git a/src/cpu_map/x86_qemu32.xml b/src/cpu_map/x86_qemu32.xml
+index 3c9cdec981..f3fb1959be 100644
+--- a/src/cpu_map/x86_qemu32.xml
++++ b/src/cpu_map/x86_qemu32.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='qemu32'>
++    <decode host='on' guest='on'/>
+     <feature name='apic'/>
+     <feature name='cmov'/>
+     <feature name='cx8'/>
+diff --git a/src/cpu_map/x86_qemu64.xml b/src/cpu_map/x86_qemu64.xml
+index a8e8dfe58d..0fe207a2b4 100644
+--- a/src/cpu_map/x86_qemu64.xml
++++ b/src/cpu_map/x86_qemu64.xml
+@@ -1,5 +1,6 @@
+ <cpus>
+   <model name='qemu64'>
++    <decode host='on' guest='on'/>
+     <!-- These are supported only by TCG.  KVM supports them only if the
+          host does.  So we leave them out:
+ 
+-- 
+2.25.1
+

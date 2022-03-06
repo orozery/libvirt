@@ -1,0 +1,40 @@
+ibm/ibm-ata-over-ethernet.patch
+ibm/ibm-set-keepalive-to-one.patch
+ibm/ibm-enable-tls-and-tcp-noauth.patch
+ibm/ibm-apparmor-vhd.patch
+# Apparmor hardening to IBMs custom case (5003z00001upUu1)
+ibm/ibm-minimal-libvirt-qemu.patch
+ibm/ibm-qemu-conf-use-apparmor.patch
+# custom storage backend for cci - case 5003z000024LIvVAAW
+ibm/ibm-cci_root.patch
+# libvirt 6.0 needs to set locale for python <3.8
+ibm/update_build_locale.patch
+# libvirt 6.0 omits events on fake shutdown, IBM wants them - case 5003z000026pBuwAAE
+ibm/ibm-revert-qemu-hide-details-of-fake-reboot.patch
+# libvirt ability to control qcow image cluster size - case 292826 / 5003z00002C0nQUAAZ
+ibm/ibm-292826-qemu-monitor-Detect-image-cluster-size-from-query-na.patch
+ibm/ibm-292826-qemu-block-Allow-specifying-cluster-size-when-using.patch
+ibm/ibm-292826-qemuBlockStorageSourceCreateDetectSize-Propagate-clu.patch
+# libvirt ability to do LUKS inside of qcow2 - case 299954 / 5004K000003uQ1hQAE
+ibm/ibm-SF299954-01-qemu-block-Don-t-skip-creation-of-luks-formatted-ima.patch
+ibm/ibm-SF299954-02-qemu-block-Split-up-formatting-of-JSON-props-for-raw.patch
+ibm/ibm-SF299954-03-util-detect-LUKS-encryption-scheme-in-qcow2-files.patch
+ibm/ibm-SF299954-04-storage-add-support-for-qcow2-LUKS-encryption.patch
+ibm/ibm-SF299954-05-util-fix-non-null-pointer-parameter-annotations.patch
+# libvirt Cascade apparmor rules down to backing files - case 00305159 / 5004K00000603jXQAQ
+ibm/ibm-SF305159-apparmor-chain-rules.patch
+# request for an early fix to low prio CVE CVE-2020-25637 - SF 309456 / 5004K000005pN1YQAU
+ibm/sf-SF00309456-rpc-gendispatch-handle-empty-flags.patch
+ibm/sf-SF00309456-rpc-add-support-for-filtering-acls-by-uint-params.patch
+ibm/sf-SF00309456-rpc-require-write-acl-for-guest-agent-in-virDomainIn.patch
+# libvirt clustersize support for qemu-img - SF 00309499 / 5004K000005pOZjQAM
+ibm/ibm-SF309499-01-conf-Move-and-rename-virDomainParseScaledValue.patch
+ibm/ibm-SF309499-02-storage-add-support-for-QCOW2-cluster_size-option.patch
+ibm/ibm-SF309499-03-storage_file-add-support-to-probe-cluster_size-from-.patch
+# virt-admin server-update-tls - SF 00328352 / 5004K00000E7t7QQAR
+ibm/virnetserver-Introduce-virNetServerUpdateTlsFiles.patch
+ibm/tls-Add-a-mutex-lock-on-tlsCtxt.patch
+ibm/admin-Introduce-virAdmServerUpdateTlsFiles.patch
+ibm/virt-admin-Introduce-command-srv-update-tls.patch
+ibm/docs-update-virt-admin.rst-for-server-update-tls.patch
+ibm/virnetserver-fix-some-memory-leaks-in-virNetTLSConte.patch

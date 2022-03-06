@@ -1,0 +1,58 @@
+From 6eab924daa243afa67f2cc20dcbdf521904bb62b Mon Sep 17 00:00:00 2001
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Tue, 28 Jan 2020 13:40:24 +0100
+Subject: [PATCH] Remove checking of return value of virHashNew
+
+There are two calls to virHashNew which check the return value. It's not
+necessary any more as virHashNew always returns a valid pointer.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=6eab924daa
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1929202
+Last-Update: 2021-07-20
+
+---
+ src/conf/backup_conf.c       | 6 +-----
+ src/qemu/qemu_monitor_json.c | 3 +--
+ 2 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/conf/backup_conf.c b/src/conf/backup_conf.c
+index b370b686f1..64c8f6cc09 100644
+--- a/src/conf/backup_conf.c
++++ b/src/conf/backup_conf.c
+@@ -439,15 +439,11 @@ virDomainBackupAlignDisks(virDomainBackupDefPtr def,
+                           virDomainDefPtr dom,
+                           const char *suffix)
+ {
+-    g_autoptr(virHashTable) disks = NULL;
++    g_autoptr(virHashTable) disks = virHashNew(NULL);
+     size_t i;
+     int ndisks;
+     bool backup_all = false;
+ 
+-
+-    if (!(disks = virHashNew(NULL)))
+-        return -1;
+-
+     /* Unlikely to have a guest without disks but technically possible.  */
+     if (!dom->ndisks) {
+         virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+diff --git a/src/qemu/qemu_monitor_json.c b/src/qemu/qemu_monitor_json.c
+index e27f3085c4..981d091ba0 100644
+--- a/src/qemu/qemu_monitor_json.c
++++ b/src/qemu/qemu_monitor_json.c
+@@ -2990,8 +2990,7 @@ qemuMonitorJSONBlockGetNamedNodeDataJSON(virJSONValuePtr nodes)
+ {
+     g_autoptr(virHashTable) ret = NULL;
+ 
+-    if (!(ret = virHashNew((virHashDataFree) qemuMonitorJSONBlockNamedNodeDataFree)))
+-        return NULL;
++    ret = virHashNew((virHashDataFree) qemuMonitorJSONBlockNamedNodeDataFree);
+ 
+     if (virJSONValueArrayForeachSteal(nodes,
+                                       qemuMonitorJSONBlockGetNamedNodeDataWorker,
+-- 
+2.32.0
+

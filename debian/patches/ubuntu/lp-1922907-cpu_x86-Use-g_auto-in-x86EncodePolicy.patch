@@ -1,0 +1,43 @@
+From 5b45d2cf1ff0d2d972f103a678c01bc0eb7c1e18 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 11:30:43 +0100
+Subject: [PATCH] cpu_x86: Use g_auto* in x86EncodePolicy
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=5b45d2cf1f
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 471ca3e93d..67387df23e 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -2164,7 +2164,7 @@ x86EncodePolicy(virCPUx86Data *data,
+                 virCPUx86MapPtr map,
+                 virCPUFeaturePolicy policy)
+ {
+-    virCPUx86ModelPtr model;
++    g_autoptr(virCPUx86Model) model = NULL;
+ 
+     if (!(model = x86ModelFromCPU(cpu, map, policy)))
+         return -1;
+@@ -2172,7 +2172,6 @@ x86EncodePolicy(virCPUx86Data *data,
+     *data = model->data;
+     model->data.len = 0;
+     model->data.items = NULL;
+-    x86ModelFree(model);
+ 
+     return 0;
+ }
+-- 
+2.31.1
+

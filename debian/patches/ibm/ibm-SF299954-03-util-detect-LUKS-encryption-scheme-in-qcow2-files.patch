@@ -1,0 +1,47 @@
+From d54a8164413aa34001d7e530e7ae420c0181f779 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
+Date: Wed, 16 Sep 2020 18:00:35 +0100
+Subject: [PATCH 3/5] util: detect LUKS encryption scheme in qcow2 files
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Crypt method number 2 indicates LUKS format.
+
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit 285fdf373dbe7a1550cf6fee67ca13dd87ba8095)
+---
+ src/util/virstoragefile.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/src/util/virstoragefile.c b/src/util/virstoragefile.c
+index 1397f532fd..e98e30eb5e 100644
+--- a/src/util/virstoragefile.c
++++ b/src/util/virstoragefile.c
+@@ -293,6 +293,22 @@ static struct FileEncryptionInfo const qcow2EncryptionInfo[] = {
+ 
+         .payloadOffset = -1,
+     },
++    {
++        .format = VIR_STORAGE_ENCRYPTION_FORMAT_LUKS,
++
++        .magicOffset = 0,
++        .magic = NULL,
++        .endian = LV_BIG_ENDIAN,
++
++        .versionOffset  = -1,
++        .versionSize = 0,
++        .versionNumbers = {},
++
++        .modeOffset = QCOW2_HDR_CRYPT,
++        .modeValue = 2,
++
++        .payloadOffset = -1,
++    },
+     { 0 }
+ };
+ 
+-- 
+2.30.0
+

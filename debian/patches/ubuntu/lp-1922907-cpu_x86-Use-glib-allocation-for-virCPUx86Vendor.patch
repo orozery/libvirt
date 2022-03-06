@@ -1,0 +1,50 @@
+From 8a41417b23dda97eb09bcd2921c1ab0d5fbce1b6 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 10:37:29 +0100
+Subject: [PATCH] cpu_x86: Use glib allocation for virCPUx86Vendor
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=8a41417b23
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 9e22c83c4d..5ffae3cebe 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -830,9 +830,10 @@ x86VendorFree(virCPUx86VendorPtr vendor)
+     if (!vendor)
+         return;
+ 
+-    VIR_FREE(vendor->name);
+-    VIR_FREE(vendor);
++    g_free(vendor->name);
++    g_free(vendor);
+ }
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(virCPUx86Vendor, x86VendorFree);
+ 
+ 
+ static virCPUx86VendorPtr
+@@ -860,9 +861,7 @@ x86VendorParse(xmlXPathContextPtr ctxt,
+     char *string = NULL;
+     int ret = -1;
+ 
+-    if (VIR_ALLOC(vendor) < 0)
+-        goto cleanup;
+-
++    vendor = g_new0(virCPUx86Vendor, 1);
+     vendor->name = g_strdup(name);
+ 
+     if (x86VendorFind(map, vendor->name)) {
+-- 
+2.31.1
+

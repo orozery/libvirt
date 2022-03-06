@@ -1,0 +1,19 @@
+Description: Handle network/hosts and AoE disks.
+   * Enable access to AoE disks.
+   * also needs k as qemu might lock the file
+Author: Don Koch <kochd@us.ibm.com>
+
+---
+Origin: vendor
+Forwarded: no
+
+--- a/src/security/apparmor/usr.lib.libvirt.virt-aa-helper
++++ b/src/security/apparmor/usr.lib.libvirt.virt-aa-helper
+@@ -89,6 +89,7 @@ profile virt-aa-helper /usr/{lib,lib64}/
+   /**.vhd r,
+   /**.[iI][sS][oO] r,
+   /**/disk{,.*} r,
++  /dev/etherd/e*.* rk,
+ 
+   # Site-specific additions and overrides. See local/README for details.
+   #include <local/usr.lib.libvirt.virt-aa-helper>

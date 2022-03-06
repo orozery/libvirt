@@ -1,0 +1,105 @@
+From 80791859aced44e6feac35db4f4ecbb9a5de664f Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 5 Feb 2020 15:51:09 +0100
+Subject: [PATCH] qemu: Pass machine type to virQEMUCapsIsCPUModeSupported
+
+The usability of a specific CPU mode may depend on machine type, let's
+prepare for this by passing it to virQEMUCapsIsCPUModeSupported.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=80791859aced44e6feac35db4f4ecbb9a5de664f
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1861125
+Last-Update: 2020-02-12
+
+---
+ src/qemu/qemu_capabilities.c | 12 ++++++++----
+ src/qemu/qemu_capabilities.h |  3 ++-
+ src/qemu/qemu_domain.c       |  3 ++-
+ src/qemu/qemu_process.c      |  2 +-
+ 4 files changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index dfe7d48550..162e49e2d4 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -2279,7 +2279,8 @@ bool
+ virQEMUCapsIsCPUModeSupported(virQEMUCapsPtr qemuCaps,
+                               virArch hostarch,
+                               virDomainVirtType type,
+-                              virCPUMode mode)
++                              virCPUMode mode,
++                              const char *machineType G_GNUC_UNUSED)
+ {
+     qemuMonitorCPUDefsPtr cpus;
+ 
+@@ -5644,18 +5645,21 @@ virQEMUCapsFillDomainCPUCaps(virQEMUCapsPtr qemuCaps,
+                              virDomainCapsPtr domCaps)
+ {
+     if (virQEMUCapsIsCPUModeSupported(qemuCaps, hostarch, domCaps->virttype,
+-                                      VIR_CPU_MODE_HOST_PASSTHROUGH))
++                                      VIR_CPU_MODE_HOST_PASSTHROUGH,
++                                      domCaps->machine))
+         domCaps->cpu.hostPassthrough = true;
+ 
+     if (virQEMUCapsIsCPUModeSupported(qemuCaps, hostarch, domCaps->virttype,
+-                                      VIR_CPU_MODE_HOST_MODEL)) {
++                                      VIR_CPU_MODE_HOST_MODEL,
++                                      domCaps->machine)) {
+         virCPUDefPtr cpu = virQEMUCapsGetHostModel(qemuCaps, domCaps->virttype,
+                                                    VIR_QEMU_CAPS_HOST_CPU_REPORTED);
+         domCaps->cpu.hostModel = virCPUDefCopy(cpu);
+     }
+ 
+     if (virQEMUCapsIsCPUModeSupported(qemuCaps, hostarch, domCaps->virttype,
+-                                      VIR_CPU_MODE_CUSTOM)) {
++                                      VIR_CPU_MODE_CUSTOM,
++                                      domCaps->machine)) {
+         const char *blacklist[] = { "host", NULL };
+         VIR_AUTOSTRINGLIST models = NULL;
+ 
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index b97c11ee1d..2473e64654 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -629,7 +629,8 @@ bool virQEMUCapsIsVirtTypeSupported(virQEMUCapsPtr qemuCaps,
+ bool virQEMUCapsIsCPUModeSupported(virQEMUCapsPtr qemuCaps,
+                                    virArch hostarch,
+                                    virDomainVirtType type,
+-                                   virCPUMode mode);
++                                   virCPUMode mode,
++                                   const char *machineType);
+ const char *virQEMUCapsGetCanonicalMachine(virQEMUCapsPtr qemuCaps,
+                                            virDomainVirtType virtType,
+                                            const char *name);
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index 851f750bd7..1b4825a539 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -4600,7 +4600,8 @@ qemuDomainDefSetDefaultCPU(virDomainDefPtr def,
+     if (STREQ(model, "host")) {
+         if (ARCH_IS_S390(def->os.arch) &&
+             virQEMUCapsIsCPUModeSupported(qemuCaps, hostarch, def->virtType,
+-                                          VIR_CPU_MODE_HOST_MODEL)) {
++                                          VIR_CPU_MODE_HOST_MODEL,
++                                          def->os.machine)) {
+             def->cpu->mode = VIR_CPU_MODE_HOST_MODEL;
+         } else {
+             def->cpu->mode = VIR_CPU_MODE_HOST_PASSTHROUGH;
+diff --git a/src/qemu/qemu_process.c b/src/qemu/qemu_process.c
+index ddcc763cfd..e3df75d281 100644
+--- a/src/qemu/qemu_process.c
++++ b/src/qemu/qemu_process.c
+@@ -6022,7 +6022,7 @@ qemuProcessUpdateGuestCPU(virDomainDefPtr def,
+     }
+ 
+     if (!virQEMUCapsIsCPUModeSupported(qemuCaps, hostarch, def->virtType,
+-                                       def->cpu->mode)) {
++                                       def->cpu->mode, def->os.machine)) {
+         virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                        _("CPU mode '%s' for %s %s domain on %s host is not "
+                          "supported by hypervisor"),
+-- 
+2.25.0
+

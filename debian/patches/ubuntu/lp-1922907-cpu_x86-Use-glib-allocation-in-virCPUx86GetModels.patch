@@ -1,0 +1,49 @@
+From e43e2ff7f5b629f979e56387c4be46f2be251b75 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 18:41:48 +0100
+Subject: [PATCH] cpu_x86: Use glib allocation in virCPUx86GetModels
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=e43e2ff7f5
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 51c2a0ea36..3c08edcd73 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -3121,21 +3121,13 @@ virCPUx86GetModels(char ***models)
+         return -1;
+ 
+     if (models) {
+-        if (VIR_ALLOC_N(*models, map->nmodels + 1) < 0)
+-            goto error;
++        *models = g_new0(char *, map->nmodels + 1);
+ 
+         for (i = 0; i < map->nmodels; i++)
+             (*models)[i] = g_strdup(map->models[i]->name);
+     }
+ 
+     return map->nmodels;
+-
+- error:
+-    if (models) {
+-        virStringListFree(*models);
+-        *models = NULL;
+-    }
+-    return -1;
+ }
+ 
+ 
+-- 
+2.31.1
+

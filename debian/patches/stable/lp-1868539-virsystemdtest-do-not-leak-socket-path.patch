@@ -1,0 +1,55 @@
+From 7b6308b725f2a6b5b4a2d3b30f4577096b45a115 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Sat, 22 Feb 2020 00:57:33 +0100
+Subject: [PATCH] virsystemdtest: do not leak socket path
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Use an autofree'd helper variable to store the socket path
+and free it after the function finishes.
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Fixes: 5b8569dd6e284b9159c701e8bffafb196983fc4a
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=7b6308b725
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ tests/virsystemdtest.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/tests/virsystemdtest.c b/tests/virsystemdtest.c
+index b7dfd64d06..1e36298189 100644
+--- a/tests/virsystemdtest.c
++++ b/tests/virsystemdtest.c
+@@ -555,12 +555,15 @@ testActivation(bool useNames)
+     size_t nfds = 0;
+     g_autoptr(virSystemdActivation) act = NULL;
+     g_auto(virBuffer) names = VIR_BUFFER_INITIALIZER;
++    g_autofree char *demo_socket_path = NULL;
+ 
+     virBufferAddLit(&names, "demo-unix.socket");
+ 
+     if (testActivationCreateFDs(&sockUNIX, &sockIP, &nsockIP) < 0)
+         return -1;
+ 
++    demo_socket_path = virNetSocketGetPath(sockUNIX);
++
+     for (i = 0; i < nsockIP; i++)
+         virBufferAddLit(&names, ":demo-ip.socket");
+ 
+@@ -577,7 +580,7 @@ testActivation(bool useNames)
+ 
+     map[0].name = "demo-unix.socket";
+     map[0].family = AF_UNIX;
+-    map[0].path = virNetSocketGetPath(sockUNIX);
++    map[0].path = demo_socket_path;
+ 
+     map[1].name = "demo-ip.socket";
+     map[1].family = AF_INET;
+-- 
+2.25.1
+

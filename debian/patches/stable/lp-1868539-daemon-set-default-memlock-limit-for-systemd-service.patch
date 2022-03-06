@@ -1,0 +1,94 @@
+From b379fee11772976f85e095717602e5e010b95e6e Mon Sep 17 00:00:00 2001
+From: Pavel Hrdina <phrdina@redhat.com>
+Date: Wed, 26 Feb 2020 13:23:00 +0100
+Subject: [PATCH] daemon: set default memlock limit for systemd service
+
+The default memlock limit is 64k which is not enough to start a single
+VM. The requirements for one VM are 12k, 8k for eBPF map and 4k for eBPF
+program, however, it fails to create eBPF map and program with 64k limit.
+By testing I figured out that the minimal limit is 80k to start a single
+VM with functional eBPF and if I add 12k I can start another one.
+
+This leads into following calculation:
+
+80k as memlock limit worked to start a VM with eBPF which means there
+is 68k of lock memory that I was not able to figure out what was using
+it.  So to get a number for 4096 VMs:
+
+        68 + 12 * 4096 = 49220
+
+If we round it up we will get 64M of memory lock limit to support 4096
+VMs with default map size which can hold 64 entries for devices.
+
+This should be good enough as a sane default and users can change it if
+the need to.
+
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1807090
+
+Signed-off-by: Pavel Hrdina <phrdina@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=b379fee117
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ src/lxc/virtlxcd.service.in    | 6 ++++++
+ src/qemu/virtqemud.service.in  | 6 ++++++
+ src/remote/libvirtd.service.in | 6 ++++++
+ 3 files changed, 18 insertions(+)
+
+diff --git a/src/lxc/virtlxcd.service.in b/src/lxc/virtlxcd.service.in
+index c732499a64..33f8ca2d4d 100644
+--- a/src/lxc/virtlxcd.service.in
++++ b/src/lxc/virtlxcd.service.in
+@@ -32,6 +32,12 @@ LimitNOFILE=8192
+ # A conservative default of 8 tasks per guest results in a TasksMax of
+ # 32k to support 4096 guests.
+ TasksMax=32768
++# With cgroups v2 there is no devices controller anymore, we have to use
++# eBPF to control access to devices.  In order to do that we create a eBPF
++# hash MAP which locks memory.  The default map size for 64 devices together
++# with program takes 12k per guest.  After rounding up we will get 64M to
++# support 4096 guests.
++LimitMEMLOCK=64M
+ 
+ [Install]
+ WantedBy=multi-user.target
+diff --git a/src/qemu/virtqemud.service.in b/src/qemu/virtqemud.service.in
+index 44eb2a2bf7..aa24bdaab7 100644
+--- a/src/qemu/virtqemud.service.in
++++ b/src/qemu/virtqemud.service.in
+@@ -32,6 +32,12 @@ LimitNOFILE=8192
+ # A conservative default of 8 tasks per guest results in a TasksMax of
+ # 32k to support 4096 guests.
+ TasksMax=32768
++# With cgroups v2 there is no devices controller anymore, we have to use
++# eBPF to control access to devices.  In order to do that we create a eBPF
++# hash MAP which locks memory.  The default map size for 64 devices together
++# with program takes 12k per guest.  After rounding up we will get 64M to
++# support 4096 guests.
++LimitMEMLOCK=64M
+ 
+ [Install]
+ WantedBy=multi-user.target
+diff --git a/src/remote/libvirtd.service.in b/src/remote/libvirtd.service.in
+index 9c8c54a2ef..90b2cad5b0 100644
+--- a/src/remote/libvirtd.service.in
++++ b/src/remote/libvirtd.service.in
+@@ -40,6 +40,12 @@ LimitNOFILE=8192
+ # A conservative default of 8 tasks per guest results in a TasksMax of
+ # 32k to support 4096 guests.
+ TasksMax=32768
++# With cgroups v2 there is no devices controller anymore, we have to use
++# eBPF to control access to devices.  In order to do that we create a eBPF
++# hash MAP which locks memory.  The default map size for 64 devices together
++# with program takes 12k per guest.  After rounding up we will get 64M to
++# support 4096 guests.
++LimitMEMLOCK=64M
+ 
+ [Install]
+ WantedBy=multi-user.target
+-- 
+2.25.1
+

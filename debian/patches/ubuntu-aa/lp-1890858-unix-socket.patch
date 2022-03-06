@@ -1,0 +1,22 @@
+Description: allow network unix dgram for NSS UID resolution
+ Certain conditions - aong others non local users - can in Focal
+ trigger libvirt to call for NSS resolving usernames.
+ That is done through a unix socket bind/call which is denied
+ by apparmor. In some cases that is crashing libvirtd and in others
+ it "only" denies the user from using libvirtd.
+Forwarded: no
+X-Not-Forwarded-Reason: not a problem for latter libvirt versions - Ubuntu Focal only
+Author: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1890858
+Last-Update: 2021-06-14
+--- a/src/security/apparmor/usr.sbin.libvirtd
++++ b/src/security/apparmor/usr.sbin.libvirtd
+@@ -46,6 +46,8 @@ profile libvirtd /usr/sbin/libvirtd flag
+   network netlink raw,
+   network packet dgram,
+   network packet raw,
++  # For UID resolution in Focal (LP: #1890858)
++  unix (bind) type=dgram addr=@userdb-*,
+ 
+   # for --p2p migrations
+   unix (send, receive) type=stream addr=none peer=(label=unconfined addr=none),

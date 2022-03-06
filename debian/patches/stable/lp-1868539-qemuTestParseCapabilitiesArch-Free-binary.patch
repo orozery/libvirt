@@ -1,0 +1,52 @@
+From 6d371d92f8863b2192c682dd9b6cff5283e13880 Mon Sep 17 00:00:00 2001
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 21 Feb 2020 08:28:13 +0100
+Subject: [PATCH] qemuTestParseCapabilitiesArch: Free @binary
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The variable is allocated, but never freed.
+
+==119642== 29 bytes in 1 blocks are definitely lost in loss record 409 of 671
+==119642==    at 0x483579F: malloc (vg_replace_malloc.c:309)
+==119642==    by 0x5AB075F: __vasprintf_internal (in /lib64/libc-2.29.so)
+==119642==    by 0x57C1A28: g_vasprintf (in /usr/lib64/libglib-2.0.so.0.6000.7)
+==119642==    by 0x579A0CC: g_strdup_vprintf (in /usr/lib64/libglib-2.0.so.0.6000.7)
+==119642==    by 0x4AE6D58: vir_g_strdup_printf (glibcompat.c:197)
+==119642==    by 0x136EEE: qemuTestParseCapabilitiesArch (testutilsqemu.c:291)
+==119642==    by 0x138506: testQemuInfoSetArgs (testutilsqemu.c:763)
+==119642==    by 0x135FFF: mymain (qemuxml2argvtest.c:3093)
+==119642==    by 0x13A60E: virTestMain (testutils.c:839)
+==119642==    by 0x1368C2: main (qemuxml2argvtest.c:3121)
+
+Fixes: 42b3e5b9e4b919644afe55a815992c07fb79b9dc
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=6d371d92f8
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ tests/testutilsqemu.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/tests/testutilsqemu.c b/tests/testutilsqemu.c
+index 0cb9a7456d..4dd5664f7b 100644
+--- a/tests/testutilsqemu.c
++++ b/tests/testutilsqemu.c
+@@ -288,8 +288,8 @@ qemuTestParseCapabilitiesArch(virArch arch,
+                               const char *capsFile)
+ {
+     virQEMUCapsPtr qemuCaps = NULL;
+-    char *binary = g_strdup_printf("/usr/bin/qemu-system-%s",
+-                                   virArchToString(arch));
++    g_autofree char *binary = g_strdup_printf("/usr/bin/qemu-system-%s",
++                                              virArchToString(arch));
+ 
+     if (!(qemuCaps = virQEMUCapsNewBinary(binary)) ||
+         virQEMUCapsLoadCache(arch, qemuCaps, capsFile) < 0)
+-- 
+2.25.1
+

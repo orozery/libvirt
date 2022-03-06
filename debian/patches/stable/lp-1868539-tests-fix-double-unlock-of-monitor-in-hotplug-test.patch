@@ -1,0 +1,64 @@
+From 46e16b553dc82235cf8b412dc703d5fc7c1e4c09 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Daniel=20P=2E=20Berrang=C3=A9?= <berrange@redhat.com>
+Date: Thu, 12 Mar 2020 18:33:51 +0000
+Subject: [PATCH] tests: fix double unlock of monitor in hotplug test
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The qemuMonitorTestNew() function returns with the monitor object
+locked, and expects it to still be locked when qemuMonitorTestFree
+is called.  The qemuhotplug test, however, explicitly unlocks the
+monitor, but then forgets to lock it again. As a result the
+qemuMonitorTestFree function is unlocking a mutex it doesn't own.
+
+This bug has existed forever, but since we use normal POSIX mutexes
+and don't check the return value of pthread_mutex_lock/unlock we
+didn't see the error. It was harmless until the switch to the per
+monitor event loop which requires the thread synchronization to
+work reliably, whereupon it started crashing.
+
+Reviewed-by: Peter Krempa <pkrempa@redhat.com>
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=46e16b553d
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ tests/qemuhotplugtest.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/tests/qemuhotplugtest.c b/tests/qemuhotplugtest.c
+index 8b411d63f0..d9244dca44 100644
+--- a/tests/qemuhotplugtest.c
++++ b/tests/qemuhotplugtest.c
+@@ -337,6 +337,8 @@ testQemuHotplug(const void *data)
+         ret = testQemuHotplugUpdate(vm, dev);
+     }
+ 
++    virObjectLock(priv->mon);
++
+  cleanup:
+     VIR_FREE(domain_filename);
+     VIR_FREE(device_filename);
+@@ -378,6 +380,7 @@ static void
+ testQemuHotplugCpuDataFree(struct testQemuHotplugCpuData *data)
+ {
+     qemuDomainObjPrivatePtr priv;
++    qemuMonitorPtr mon;
+ 
+     if (!data)
+         return;
+@@ -396,6 +399,8 @@ testQemuHotplugCpuDataFree(struct testQemuHotplugCpuData *data)
+         virObjectUnref(data->vm);
+     }
+ 
++    mon = qemuMonitorTestGetMonitor(data->mon);
++    virObjectLock(mon);
+     qemuMonitorTestFree(data->mon);
+     VIR_FREE(data);
+ }
+-- 
+2.25.1
+

@@ -1,0 +1,66 @@
+From 5a21fd513adcbd0738bf5528f835083cfb92fc86 Mon Sep 17 00:00:00 2001
+From: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Date: Thu, 30 Jan 2020 08:12:38 +0100
+Subject: [PATCH] apparmor: fix qemu_bridge_helper for named profile
+
+Since a3ab6d42 "apparmor: convert libvirtd profile to a named profile"
+the detection of the subelement for qemu_bridge_helper is wrong.
+
+In combination with the older 123cc3e1 "apparmor: allow
+/usr/lib/qemu/qemu-bridge-helper" it now detects qemu-bridge-helper no
+more with its path, but instead as a proper subelement of the named profile
+like: label=libvirtd//qemu_bridge_helper
+
+In the same fashion the reverse rule in the qemu_bridge_helper
+sub-profile still uses the path and not the named profile label.
+
+Triggering denies like:
+apparmor="DENIED" operation="file_inherit"
+  profile="libvirtd//qemu_bridge_helper" pid=5629 comm="qemu-bridge-hel"
+  family="unix" sock_type="stream" protocol=0 requested_mask="send receive"
+  denied_mask="send receive" addr=none peer_addr=none peer="libvirtd"
+
+This patch fixes the unix socket rules for the communication between
+libvirtd and qemu-bridge-helper to match that.
+
+Fixes: a3ab6d42d825499af44b8f19f9299e150d9687bc
+Fixes: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1655111
+
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+Signed-off-by: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=5a21fd513adcbd0738bf5528f835083cfb92fc86
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1655111
+Last-Update: 2020-01-31
+
+---
+ src/security/apparmor/usr.sbin.libvirtd | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/security/apparmor/usr.sbin.libvirtd b/src/security/apparmor/usr.sbin.libvirtd
+index b21f31b2e1..c1acea70a1 100644
+--- a/src/security/apparmor/usr.sbin.libvirtd
++++ b/src/security/apparmor/usr.sbin.libvirtd
+@@ -61,8 +61,8 @@ profile libvirtd /usr/sbin/libvirtd flags=(attach_disconnected) {
+   signal (send) set=("kill", "term") peer=unconfined,
+ 
+   # For communication/control to qemu-bridge-helper
+-  unix (send, receive) type=stream addr=none peer=(label=/usr/sbin/libvirtd//qemu_bridge_helper),
+-  signal (send) set=("term") peer=/usr/sbin/libvirtd//qemu_bridge_helper,
++  unix (send, receive) type=stream addr=none peer=(label=libvirtd//qemu_bridge_helper),
++  signal (send) set=("term") peer=libvirtd//qemu_bridge_helper,
+ 
+   # allow connect with openGraphicsFD, direction reversed in newer versions
+   unix (send, receive) type=stream addr=none peer=(label=libvirt-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*),
+@@ -120,7 +120,7 @@ profile libvirtd /usr/sbin/libvirtd flags=(attach_disconnected) {
+    network inet stream,
+ 
+    # For communication/control from libvirtd
+-   unix (send, receive) type=stream addr=none peer=(label=/usr/sbin/libvirtd),
++   unix (send, receive) type=stream addr=none peer=(label=libvirtd),
+    signal (receive) set=("term") peer=/usr/sbin/libvirtd,
+    signal (receive) set=("term") peer=libvirtd,
+ 
+-- 
+2.25.0
+

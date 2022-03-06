@@ -1,0 +1,70 @@
+From b9e87908dbcff23cc3fdf3d8629849560d2e7268 Mon Sep 17 00:00:00 2001
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 30 Jan 2020 15:35:06 +0100
+Subject: [PATCH] qemuMigrationCookieAddNBD: Fix filling of 'capacity' when
+ blockdev is used
+
+With -blockdev we must look up via the nodename rather than the 'drive'
+alias which is not present any more.
+
+This fixes the pre-creation of storage volumes on migration with
+non-shared storage.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1793263
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=b9e87908db
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1929202
+Last-Update: 2021-07-20
+
+---
+ src/qemu/qemu_migration_cookie.c | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/qemu/qemu_migration_cookie.c b/src/qemu/qemu_migration_cookie.c
+index 734d95f4f1..a5a9edffc3 100644
+--- a/src/qemu/qemu_migration_cookie.c
++++ b/src/qemu/qemu_migration_cookie.c
+@@ -455,6 +455,7 @@ qemuMigrationCookieAddNBD(qemuMigrationCookiePtr mig,
+ {
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+     g_autoptr(virHashTable) stats = virHashNew(virHashValueFree);
++    bool blockdev = virQEMUCapsGet(priv->qemuCaps, QEMU_CAPS_BLOCKDEV);
+     size_t i;
+     int rc;
+ 
+@@ -474,7 +475,10 @@ qemuMigrationCookieAddNBD(qemuMigrationCookiePtr mig,
+ 
+     if (qemuDomainObjEnterMonitorAsync(driver, vm, priv->job.asyncJob) < 0)
+         return -1;
+-    rc = qemuMonitorBlockStatsUpdateCapacity(priv->mon, stats, false);
++    if (blockdev)
++        rc = qemuMonitorBlockStatsUpdateCapacityBlockdev(priv->mon, stats);
++    else
++        rc = qemuMonitorBlockStatsUpdateCapacity(priv->mon, stats, false);
+     if (qemuDomainObjExitMonitor(driver, vm) < 0 || rc < 0)
+         return -1;
+ 
+@@ -482,9 +486,14 @@ qemuMigrationCookieAddNBD(qemuMigrationCookiePtr mig,
+         virDomainDiskDefPtr disk = vm->def->disks[i];
+         qemuBlockStats *entry;
+ 
+-        if (!disk->info.alias ||
+-            !(entry = virHashLookup(stats, disk->info.alias)))
+-            continue;
++        if (blockdev) {
++            if (!(entry = virHashLookup(stats, disk->src->nodeformat)))
++                continue;
++        } else {
++            if (!disk->info.alias ||
++                !(entry = virHashLookup(stats, disk->info.alias)))
++                continue;
++        }
+ 
+         mig->nbd->disks[mig->nbd->ndisks].target = g_strdup(disk->dst);
+         mig->nbd->disks[mig->nbd->ndisks].capacity = entry->capacity;
+-- 
+2.32.0
+

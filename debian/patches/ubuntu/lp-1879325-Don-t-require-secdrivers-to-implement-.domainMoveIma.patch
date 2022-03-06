@@ -1,0 +1,44 @@
+From cc8c297e473afd55e5d8e35e18345d8df176059d Mon Sep 17 00:00:00 2001
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 18 May 2020 10:07:30 +0200
+Subject: [PATCH] Don't require secdrivers to implement
+ .domainMoveImageMetadata
+
+The AppArmor secdriver does not use labels to grant access to
+resources. Therefore, it doesn't use XATTRs and hence it lacks
+implementation of .domainMoveImageMetadata callback. This leads
+to a harmless but needless error message appearing in the logs:
+
+  virSecurityManagerMoveImageMetadata:476 : this function is not
+  supported by the connection driver: virSecurityManagerMoveImageMetadata
+
+Closes: https://gitlab.com/libvirt/libvirt/-/issues/25
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Erik Skultety <eskultet@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=cc8c297e473afd55e5d8e35e18345d
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1879325
+Last-Update: 2020-05-20
+
+---
+ src/security/security_manager.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/security/security_manager.c b/src/security/security_manager.c
+index 2dea294784..b1237d63b6 100644
+--- a/src/security/security_manager.c
++++ b/src/security/security_manager.c
+@@ -473,8 +473,7 @@ virSecurityManagerMoveImageMetadata(virSecurityManagerPtr mgr,
+         return ret;
+     }
+ 
+-    virReportUnsupportedError();
+-    return -1;
++    return 0;
+ }
+ 
+ 
+-- 
+2.26.0
+

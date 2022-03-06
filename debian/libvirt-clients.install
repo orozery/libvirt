@@ -5,3 +5,4 @@ etc/libvirt/libvirt.conf
 etc/libvirt/libvirt-admin.conf
 usr/share/man/man7/virkeycode-*.7
 usr/share/man/man7/virkeyname-*.7
+etc/profile.d/libvirt-uri.sh

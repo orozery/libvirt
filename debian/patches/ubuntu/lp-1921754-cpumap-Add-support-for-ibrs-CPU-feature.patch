@@ -1,0 +1,59 @@
+From 5c17a7ba41670f3182186c06e621995b5d03fc95 Mon Sep 17 00:00:00 2001
+From: Tim Wiederhake <twiederh@redhat.com>
+Date: Mon, 22 Feb 2021 13:20:09 +0100
+Subject: [PATCH] cpumap: Add support for ibrs CPU feature
+
+Signed-off-by: Tim Wiederhake <twiederh@redhat.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=5c17a7ba
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1921754
+Last-Update: 2021-04-07
+
+---
+ src/cpu_map/x86_features.xml                               | 3 +++
+ tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-guest.xml | 1 +
+ tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-host.xml  | 1 +
+ 3 files changed, 5 insertions(+)
+
+diff --git a/src/cpu_map/x86_features.xml b/src/cpu_map/x86_features.xml
+index 5cfa07502a..b03a6b065d 100644
+--- a/src/cpu_map/x86_features.xml
++++ b/src/cpu_map/x86_features.xml
+@@ -507,6 +507,9 @@
+   <feature name='ibpb'>
+     <cpuid eax_in='0x80000008' ebx='0x00001000'/>
+   </feature>
++  <feature name='ibrs'>
++    <cpuid eax_in='0x80000008' ebx='0x00004000'/>
++  </feature>
+   <feature name='amd-stibp'>
+     <cpuid eax_in='0x80000008' ebx='0x00008000'/>
+   </feature>
+diff --git a/tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-guest.xml b/tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-guest.xml
+index 6d95b508b2..40e7912398 100644
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-guest.xml
+@@ -17,6 +17,7 @@
+   <feature policy='require' name='topoext'/>
+   <feature policy='require' name='perfctr_nb'/>
+   <feature policy='require' name='invtsc'/>
++  <feature policy='require' name='ibrs'/>
+   <feature policy='require' name='amd-ssbd'/>
+   <feature policy='require' name='lbrv'/>
+   <feature policy='require' name='svm-lock'/>
+diff --git a/tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-host.xml b/tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-host.xml
+index 65eaeabdd0..9f8108cdaa 100644
+--- a/tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-EPYC-7502-32-Core-host.xml
+@@ -18,6 +18,7 @@
+   <feature name='topoext'/>
+   <feature name='perfctr_nb'/>
+   <feature name='invtsc'/>
++  <feature name='ibrs'/>
+   <feature name='amd-ssbd'/>
+   <feature name='lbrv'/>
+   <feature name='svm-lock'/>
+-- 
+2.31.1
+

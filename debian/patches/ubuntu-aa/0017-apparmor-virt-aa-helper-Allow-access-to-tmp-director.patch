@@ -1,0 +1,25 @@
+From 5bc815f6a88f5e00613f6794c3c338abb45526fc Mon Sep 17 00:00:00 2001
+From: Stefan Bader <stefan.bader@canonical.com>
+Date: Thu, 11 May 2017 16:19:24 +0200
+Subject: [PATCH 17/33] apparmor, virt-aa-helper: Allow access to tmp
+ directories
+
+Done by importing user-tmp abstraction which includes per-user
+and globale tmp directories.
+
+Forwarded: no (part of continuous upstreaming effort)
+Signed-off-by: Stefan Bader <stefan.bader@canonical.com>
+---
+ src/security/apparmor/usr.lib.libvirt.virt-aa-helper | 1 +
+ 1 file changed, 1 insertion(+)
+
+--- a/src/security/apparmor/usr.lib.libvirt.virt-aa-helper
++++ b/src/security/apparmor/usr.lib.libvirt.virt-aa-helper
+@@ -4,6 +4,7 @@
+ profile virt-aa-helper /usr/{lib,lib64}/libvirt/virt-aa-helper {
+   #include <abstractions/base>
+   #include <abstractions/nameservice>
++  #include <abstractions/user-tmp>
+ 
+   # needed for searching directories
+   capability dac_override,

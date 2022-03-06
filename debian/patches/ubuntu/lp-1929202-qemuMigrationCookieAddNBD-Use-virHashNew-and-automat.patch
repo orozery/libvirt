@@ -1,0 +1,53 @@
+From 45eefb2c78cfe2b14d5bc5fb150ffbed18991fde Mon Sep 17 00:00:00 2001
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 30 Jan 2020 15:01:41 +0100
+Subject: [PATCH] qemuMigrationCookieAddNBD: Use virHashNew and automatic
+ freeing of virHashTablePtr
+
+Swithc to the helper which doesn't require checking of the return value.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=45eefb2c78
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1929202
+Last-Update: 2021-07-20
+
+---
+ src/qemu/qemu_migration_cookie.c | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/qemu/qemu_migration_cookie.c b/src/qemu/qemu_migration_cookie.c
+index 33ab6cb7a5..968a9b589c 100644
+--- a/src/qemu/qemu_migration_cookie.c
++++ b/src/qemu/qemu_migration_cookie.c
+@@ -454,7 +454,7 @@ qemuMigrationCookieAddNBD(qemuMigrationCookiePtr mig,
+                           virDomainObjPtr vm)
+ {
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+-    virHashTablePtr stats = NULL;
++    g_autoptr(virHashTable) stats = virHashNew(virHashValueFree);
+     size_t i;
+     int ret = -1, rc;
+ 
+@@ -472,9 +472,6 @@ qemuMigrationCookieAddNBD(qemuMigrationCookiePtr mig,
+     mig->nbd->disks = g_new0(struct qemuMigrationCookieNBDDisk, vm->def->ndisks);
+     mig->nbd->ndisks = 0;
+ 
+-    if (!(stats = virHashCreate(10, virHashValueFree)))
+-        goto cleanup;
+-
+     if (qemuDomainObjEnterMonitorAsync(driver, vm, priv->job.asyncJob) < 0)
+         goto cleanup;
+     rc = qemuMonitorBlockStatsUpdateCapacity(priv->mon, stats, false);
+@@ -496,7 +493,6 @@ qemuMigrationCookieAddNBD(qemuMigrationCookiePtr mig,
+ 
+     ret = 0;
+  cleanup:
+-    virHashFree(stats);
+     return ret;
+ }
+ 
+-- 
+2.32.0
+

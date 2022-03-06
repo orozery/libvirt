@@ -1,0 +1,28 @@
+Description: clean up testcase data
+ When adding
+  lp-1887490-cpu_map-Add-pschange-mc-no-bit-in-IA32_ARCH_CAPABILI.patch
+ in the past some cpu types where not present yet. Now that they got added
+ by the series for LP: #1922907 the changes that were skipped back then need
+ to be applied as the code of 1887490 changes that behavior.
+Author: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=12eb0c94
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1922907
+Last-Update: 2021-04-07
+--- a/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-enabled.xml
++++ b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-enabled.xml
+@@ -6,5 +6,5 @@
+   <cpuid eax_in='0x0000000d' ecx_in='0x01' eax='0x0000000f' ebx='0x00000000' ecx='0x00000000' edx='0x00000000'/>
+   <cpuid eax_in='0x80000001' ecx_in='0x00' eax='0x00000000' ebx='0x00000000' ecx='0x00000121' edx='0x2c100800'/>
+   <cpuid eax_in='0x80000008' ecx_in='0x00' eax='0x00000000' ebx='0x01001000' ecx='0x00000000' edx='0x00000000'/>
+-  <msr index='0x10a' edx='0x00000000' eax='0x000000ab'/>
++  <msr index='0x10a' edx='0x00000000' eax='0x000000eb'/>
+ </cpudata>
+--- a/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-Xeon-Platinum-9242-json.xml
+@@ -17,5 +17,6 @@
+   <feature policy='require' name='ibrs-all'/>
+   <feature policy='require' name='skip-l1dfl-vmentry'/>
+   <feature policy='require' name='mds-no'/>
++  <feature policy='require' name='pschange-mc-no'/>
+   <feature policy='require' name='tsx-ctrl'/>
+ </cpu>

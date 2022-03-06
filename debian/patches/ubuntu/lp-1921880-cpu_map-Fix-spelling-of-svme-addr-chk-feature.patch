@@ -1,0 +1,51 @@
+From b5abf9a192248b1005f63a7102d2627375d70fe5 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 4 Mar 2021 08:43:09 +0100
+Subject: [PATCH] cpu_map: Fix spelling of svme-addr-chk feature
+
+Commit a208176ca1d9eedf8aa6bf12fde6a7a9579ab549 introduced this feature
+with an incorrect "svme-addr-check" spelling.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Tim Wiederhake <twiederh@redhat.com>
+
+Backport-Note: sync_qemu_cpu_i386 didn't exist before v6.10
+Origin: backport, https://libvirt.org/git/?p=libvirt.git;a=commit;h=b5abf9a1
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1921880
+Last-Update: 2021-04-07
+
+---
+ src/cpu_map/sync_qemu_i386.py  | 2 +-
+ src/cpu_map/x86_EPYC-Milan.xml | 2 +-
+ src/cpu_map/x86_features.xml   | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cpu_map/x86_EPYC-Milan.xml b/src/cpu_map/x86_EPYC-Milan.xml
+index 53f0cd6aac..3055e175fa 100644
+--- a/src/cpu_map/x86_EPYC-Milan.xml
++++ b/src/cpu_map/x86_EPYC-Milan.xml
+@@ -76,7 +76,7 @@
+     <feature name='sse4a'/>
+     <feature name='ssse3'/>
+     <feature name='svm'/>
+-    <feature name='svme-addr-check'/>
++    <feature name='svme-addr-chk'/>
+     <feature name='syscall'/>
+     <feature name='tsc'/>
+     <feature name='umip'/>
+diff --git a/src/cpu_map/x86_features.xml b/src/cpu_map/x86_features.xml
+index c43520d08f..e98b84f3ef 100644
+--- a/src/cpu_map/x86_features.xml
++++ b/src/cpu_map/x86_features.xml
+@@ -554,7 +554,7 @@
+   <feature name='pfthreshold'>
+     <cpuid eax_in='0x8000000a' edx='0x00001000'/>
+   </feature>
+-  <feature name='svme-addr-check'>
++  <feature name='svme-addr-chk'>
+     <cpuid eax_in='0x8000000a' edx='0x10000000'/>
+   </feature>
+ 
+-- 
+2.31.1
+

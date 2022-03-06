@@ -1,0 +1,39 @@
+From 879e9db194865d70b7d66b1087a5d6903e902eab Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Sun, 9 Feb 2020 01:26:08 +0100
+Subject: [PATCH] testutils: check return value of g_setenv
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The function returns gboolean.
+Compare against the FALSE value from GLib.
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Fixes: 2c3353242337bb50fe5abc9454fd5fc98236d4ef
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=879e9db194
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ tests/testutils.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tests/testutils.c b/tests/testutils.c
+index 0cf0ac7e5c..83daed8940 100644
+--- a/tests/testutils.c
++++ b/tests/testutils.c
+@@ -836,7 +836,7 @@ virTestSetEnvPath(void)
+     }
+ 
+     if (new_path &&
+-        g_setenv("PATH", new_path, TRUE) < 0)
++        g_setenv("PATH", new_path, TRUE) == FALSE)
+         goto cleanup;
+ 
+     ret = 0;
+-- 
+2.25.1
+

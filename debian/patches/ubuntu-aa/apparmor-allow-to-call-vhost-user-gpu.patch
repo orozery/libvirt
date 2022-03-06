@@ -1,0 +1,37 @@
+From f8b0bda3bf9c1040d4f3c9f34bccc169867e5116 Mon Sep 17 00:00:00 2001
+From: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Date: Thu, 13 Feb 2020 12:29:00 +0100
+Subject: [PATCH] apparmor: allow to call vhost-user-gpu
+
+Configuring vhost-user-gpu like:
+    <video>
+      <driver name='vhostuser'/>
+      <model type='virtio' heads='1'/>
+    </video>
+Triggers an apparmor denial like:
+    apparmor="DENIED" operation="exec" profile="libvirtd"
+    name="/usr/lib/qemu/vhost-user-gpu" pid=888257 comm="libvirtd"
+    requested_mask="x" denied_mask="x" fsuid=0 ouid=0
+
+This helper is provided by qemu for vhost-user-gpu and thereby being
+in the same path as qemu_bridge_helper. Due to that adding a rule allowing
+to call uses the same path list.
+
+Signed-off-by: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+
+Forwarded: yes (https://www.redhat.com/archives/libvir-list/2020-February/msg00522.html)
+Last-Update: 2020-02-13
+
+---
+ src/security/apparmor/usr.sbin.libvirtd | 1 +
+ 1 file changed, 1 insertion(+)
+--- a/src/security/apparmor/usr.sbin.libvirtd
++++ b/src/security/apparmor/usr.sbin.libvirtd
+@@ -88,6 +88,7 @@ profile libvirtd /usr/sbin/libvirtd flag
+   /usr/{lib,lib64}/xen/bin/* Ux,
+   /usr/lib/xen-*/bin/libxl-save-helper PUx,
+   /usr/lib/xen-*/bin/pygrub PUx,
++  /usr/{lib,lib64,lib/qemu,libexec}/vhost-user-gpu PUx,
+ 
+   # Required by nwfilter_ebiptables_driver.c:ebiptablesWriteToTempFile() to
+   # read and run an ebtables script.

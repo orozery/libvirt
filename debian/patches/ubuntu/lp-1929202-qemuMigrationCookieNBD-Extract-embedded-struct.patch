@@ -1,0 +1,48 @@
+From 3093822d1d8e3bbd01ea59f35a9fea1228f9268f Mon Sep 17 00:00:00 2001
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 30 Jan 2020 14:53:26 +0100
+Subject: [PATCH] qemuMigrationCookieNBD: Extract embedded struct
+
+Extract the struct so that it's type has a name.
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=3093822d1d
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1929202
+Last-Update: 2021-07-20
+
+---
+ src/qemu/qemu_migration_cookie.h | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/qemu/qemu_migration_cookie.h b/src/qemu/qemu_migration_cookie.h
+index 20e1ed60ca..1e88684589 100644
+--- a/src/qemu/qemu_migration_cookie.h
++++ b/src/qemu/qemu_migration_cookie.h
+@@ -84,16 +84,18 @@ struct _qemuMigrationCookieNetwork {
+     qemuMigrationCookieNetDataPtr net;
+ };
+ 
++struct qemuMigrationCookieNBDDisk {
++    char *target;                   /* Disk target */
++    unsigned long long capacity;    /* And its capacity */
++};
++
+ typedef struct _qemuMigrationCookieNBD qemuMigrationCookieNBD;
+ typedef qemuMigrationCookieNBD *qemuMigrationCookieNBDPtr;
+ struct _qemuMigrationCookieNBD {
+     int port; /* on which port does NBD server listen for incoming data */
+ 
+     size_t ndisks;  /* Number of items in @disk array */
+-    struct {
+-        char *target;                   /* Disk target */
+-        unsigned long long capacity;    /* And its capacity */
+-    } *disks;
++    struct qemuMigrationCookieNBDDisk *disks;
+ };
+ 
+ typedef struct _qemuMigrationCookieCaps qemuMigrationCookieCaps;
+-- 
+2.32.0
+

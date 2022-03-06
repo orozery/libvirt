@@ -1,0 +1,10 @@
+--- a/src/qemu/qemu.conf  2019-08-26 05:26:45.000000000 +0000
++++ b/src/qemu/qemu.conf  2019-11-12 14:01:35.045908887 +0000
+@@ -420,6 +420,7 @@
+ # isolation, but it cannot appear in a list of drivers.
+ #
+ #security_driver = "selinux"
++security_driver = "apparmor"
+ 
+ # If set to non-zero, then the default security labeling
+ # will make guests confined. If set to zero, then guests

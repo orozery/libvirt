@@ -1,0 +1,68 @@
+From 2f9d15b495efdd9e63c07cd6fda611701e71ee46 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 16:06:18 +0100
+Subject: [PATCH] cpu_x86: Use g_auto* in x86UpdateHostModel
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=2f9d15b495
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 3ab70e7c20..0300bd08da 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -2817,17 +2817,16 @@ static int
+ x86UpdateHostModel(virCPUDefPtr guest,
+                    const virCPUDef *host)
+ {
+-    virCPUDefPtr updated = NULL;
++    g_autoptr(virCPUDef) updated = NULL;
+     size_t i;
+-    int ret = -1;
+ 
+     if (!(updated = virCPUDefCopyWithoutModel(host)))
+-        goto cleanup;
++        return -1;
+ 
+     updated->type = VIR_CPU_TYPE_GUEST;
+     updated->mode = VIR_CPU_MODE_CUSTOM;
+     if (virCPUDefCopyModel(updated, host, true) < 0)
+-        goto cleanup;
++        return -1;
+ 
+     if (guest->vendor_id) {
+         VIR_FREE(updated->vendor_id);
+@@ -2838,18 +2837,15 @@ x86UpdateHostModel(virCPUDefPtr guest,
+         if (virCPUDefUpdateFeature(updated,
+                                    guest->features[i].name,
+                                    guest->features[i].policy) < 0)
+-            goto cleanup;
++            return -1;
+     }
+ 
+     virCPUDefStealModel(guest, updated,
+                         guest->mode == VIR_CPU_MODE_CUSTOM);
+     guest->mode = VIR_CPU_MODE_CUSTOM;
+     guest->match = VIR_CPU_MATCH_EXACT;
+-    ret = 0;
+ 
+- cleanup:
+-    virCPUDefFree(updated);
+-    return ret;
++    return 0;
+ }
+ 
+ 
+-- 
+2.31.1
+

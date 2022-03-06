@@ -1,0 +1,242 @@
+From 8c3aed23613d0831fc7d0fe98e1aa07604a9bfca Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 6 Feb 2020 10:18:49 +0100
+Subject: [PATCH] qemuxml2*test: Add default CPU tests for s390-ccw-virtio-2.7 machines
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=8c3aed23613d0831fc7d0fe98e1aa07604a9bfca
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1861125
+Last-Update: 2020-02-12
+
+---
+ ...t-cpu-kvm-ccw-virtio-2.7.s390x-latest.args | 34 +++++++++++++++++++
+ .../s390-default-cpu-kvm-ccw-virtio-2.7.xml   | 16 +++++++++
+ ...t-cpu-tcg-ccw-virtio-2.7.s390x-latest.args | 32 +++++++++++++++++
+ .../s390-default-cpu-tcg-ccw-virtio-2.7.xml   | 16 +++++++++
+ tests/qemuxml2argvtest.c                      |  2 ++
+ ...lt-cpu-kvm-ccw-virtio-2.7.s390x-latest.xml | 24 +++++++++++++
+ ...lt-cpu-tcg-ccw-virtio-2.7.s390x-latest.xml | 26 ++++++++++++++
+ tests/qemuxml2xmltest.c                       |  2 ++
+ 8 files changed, 152 insertions(+)
+ create mode 100644 tests/qemuxml2argvdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.args
+ create mode 100644 tests/qemuxml2argvdata/s390-default-cpu-kvm-ccw-virtio-2.7.xml
+ create mode 100644 tests/qemuxml2argvdata/s390-default-cpu-tcg-ccw-virtio-2.7.s390x-latest.args
+ create mode 100644 tests/qemuxml2argvdata/s390-default-cpu-tcg-ccw-virtio-2.7.xml
+ create mode 100644 tests/qemuxml2xmloutdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.xml
+ create mode 100644 tests/qemuxml2xmloutdata/s390-default-cpu-tcg-ccw-virtio-2.7.s390x-latest.xml
+
+diff --git a/tests/qemuxml2argvdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.args b/tests/qemuxml2argvdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.args
+new file mode 100644
+index 0000000000..8c25a01e74
+--- /dev/null
++++ b/tests/qemuxml2argvdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.args
+@@ -0,0 +1,34 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/tmp/lib/domain--1-test \
++USER=test \
++LOGNAME=test \
++XDG_DATA_HOME=/tmp/lib/domain--1-test/.local/share \
++XDG_CACHE_HOME=/tmp/lib/domain--1-test/.cache \
++XDG_CONFIG_HOME=/tmp/lib/domain--1-test/.config \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu-system-s390x \
++-name guest=test,debug-threads=on \
++-S \
++-object secret,id=masterKey0,format=raw,\
++file=/tmp/lib/domain--1-test/master-key.aes \
++-machine s390-ccw-virtio-2.7,accel=kvm,usb=off,dump-guest-core=off \
++-cpu z13.2-base,aen=on,aefsi=on,msa5=on,msa4=on,msa3=on,msa2=on,msa1=on,\
++sthyi=on,edat=on,ri=on,edat2=on,vx=on,ipter=on,ap=on,esop=on,apft=on,apqci=on,\
++cte=on,bpb=on,ppa15=on,zpci=on,sea_esop2=on,te=on,cmm=on \
++-m 256 \
++-overcommit mem-lock=off \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid 9aa4b45c-b9dd-45ef-91fe-862b27b4231f \
++-display none \
++-no-user-config \
++-nodefaults \
++-chardev socket,id=charmonitor,fd=1729,server,nowait \
++-mon chardev=charmonitor,id=monitor,mode=control \
++-rtc base=utc \
++-no-shutdown \
++-boot strict=on \
++-device virtio-balloon-ccw,id=balloon0,devno=fe.0.0000 \
++-sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,\
++resourcecontrol=deny \
++-msg timestamp=on
+diff --git a/tests/qemuxml2argvdata/s390-default-cpu-kvm-ccw-virtio-2.7.xml b/tests/qemuxml2argvdata/s390-default-cpu-kvm-ccw-virtio-2.7.xml
+new file mode 100644
+index 0000000000..a3c1804f57
+--- /dev/null
++++ b/tests/qemuxml2argvdata/s390-default-cpu-kvm-ccw-virtio-2.7.xml
+@@ -0,0 +1,16 @@
++<domain type='kvm'>
++  <name>test</name>
++  <uuid>9aa4b45c-b9dd-45ef-91fe-862b27b4231f</uuid>
++  <memory>262144</memory>
++  <currentMemory>262144</currentMemory>
++  <os>
++    <type arch='s390x' machine='s390-ccw-virtio-2.7'>hvm</type>
++  </os>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-s390x</emulator>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvdata/s390-default-cpu-tcg-ccw-virtio-2.7.s390x-latest.args b/tests/qemuxml2argvdata/s390-default-cpu-tcg-ccw-virtio-2.7.s390x-latest.args
+new file mode 100644
+index 0000000000..d30c30f648
+--- /dev/null
++++ b/tests/qemuxml2argvdata/s390-default-cpu-tcg-ccw-virtio-2.7.s390x-latest.args
+@@ -0,0 +1,32 @@
++LC_ALL=C \
++PATH=/bin \
++HOME=/tmp/lib/domain--1-test \
++USER=test \
++LOGNAME=test \
++XDG_DATA_HOME=/tmp/lib/domain--1-test/.local/share \
++XDG_CACHE_HOME=/tmp/lib/domain--1-test/.cache \
++XDG_CONFIG_HOME=/tmp/lib/domain--1-test/.config \
++QEMU_AUDIO_DRV=none \
++/usr/bin/qemu-system-s390x \
++-name guest=test,debug-threads=on \
++-S \
++-object secret,id=masterKey0,format=raw,\
++file=/tmp/lib/domain--1-test/master-key.aes \
++-machine s390-ccw-virtio-2.7,accel=tcg,usb=off,dump-guest-core=off \
++-cpu qemu \
++-m 256 \
++-overcommit mem-lock=off \
++-smp 1,sockets=1,cores=1,threads=1 \
++-uuid 9aa4b45c-b9dd-45ef-91fe-862b27b4231f \
++-display none \
++-no-user-config \
++-nodefaults \
++-chardev socket,id=charmonitor,fd=1729,server,nowait \
++-mon chardev=charmonitor,id=monitor,mode=control \
++-rtc base=utc \
++-no-shutdown \
++-boot strict=on \
++-device virtio-balloon-ccw,id=balloon0,devno=fe.0.0000 \
++-sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,\
++resourcecontrol=deny \
++-msg timestamp=on
+diff --git a/tests/qemuxml2argvdata/s390-default-cpu-tcg-ccw-virtio-2.7.xml b/tests/qemuxml2argvdata/s390-default-cpu-tcg-ccw-virtio-2.7.xml
+new file mode 100644
+index 0000000000..3451e9d81f
+--- /dev/null
++++ b/tests/qemuxml2argvdata/s390-default-cpu-tcg-ccw-virtio-2.7.xml
+@@ -0,0 +1,16 @@
++<domain type='qemu'>
++  <name>test</name>
++  <uuid>9aa4b45c-b9dd-45ef-91fe-862b27b4231f</uuid>
++  <memory>262144</memory>
++  <currentMemory>262144</currentMemory>
++  <os>
++    <type arch='s390x' machine='s390-ccw-virtio-2.7'>hvm</type>
++  </os>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-s390x</emulator>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2argvtest.c b/tests/qemuxml2argvtest.c
+index 5691317bad..028364a06c 100644
+--- a/tests/qemuxml2argvtest.c
++++ b/tests/qemuxml2argvtest.c
+@@ -3093,6 +3093,8 @@ mymain(void)
+     DO_TEST_CAPS_ARCH_LATEST("ppc64-default-cpu-tcg-pseries-3.1", "ppc64");
+     DO_TEST_CAPS_ARCH_LATEST("ppc64-default-cpu-kvm-pseries-4.2", "ppc64");
+     DO_TEST_CAPS_ARCH_LATEST("ppc64-default-cpu-tcg-pseries-4.2", "ppc64");
++    DO_TEST_CAPS_ARCH_LATEST("s390-default-cpu-kvm-ccw-virtio-2.7", "s390x");
++    DO_TEST_CAPS_ARCH_LATEST("s390-default-cpu-tcg-ccw-virtio-2.7", "s390x");
+     DO_TEST_CAPS_ARCH_LATEST("s390-default-cpu-kvm-ccw-virtio-4.2", "s390x");
+     DO_TEST_CAPS_ARCH_LATEST("s390-default-cpu-tcg-ccw-virtio-4.2", "s390x");
+     DO_TEST_CAPS_ARCH_LATEST("x86_64-default-cpu-kvm-pc-4.2", "x86_64");
+diff --git a/tests/qemuxml2xmloutdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.xml b/tests/qemuxml2xmloutdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.xml
+new file mode 100644
+index 0000000000..56fd22b6e5
+--- /dev/null
++++ b/tests/qemuxml2xmloutdata/s390-default-cpu-kvm-ccw-virtio-2.7.s390x-latest.xml
+@@ -0,0 +1,24 @@
++<domain type='kvm'>
++  <name>test</name>
++  <uuid>9aa4b45c-b9dd-45ef-91fe-862b27b4231f</uuid>
++  <memory unit='KiB'>262144</memory>
++  <currentMemory unit='KiB'>262144</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='s390x' machine='s390-ccw-virtio-2.7'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='host-model' check='partial'/>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-s390x</emulator>
++    <controller type='pci' index='0' model='pci-root'/>
++    <memballoon model='virtio'>
++      <address type='ccw' cssid='0xfe' ssid='0x0' devno='0x0000'/>
++    </memballoon>
++    <panic model='s390'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2xmloutdata/s390-default-cpu-tcg-ccw-virtio-2.7.s390x-latest.xml b/tests/qemuxml2xmloutdata/s390-default-cpu-tcg-ccw-virtio-2.7.s390x-latest.xml
+new file mode 100644
+index 0000000000..5048b09e15
+--- /dev/null
++++ b/tests/qemuxml2xmloutdata/s390-default-cpu-tcg-ccw-virtio-2.7.s390x-latest.xml
+@@ -0,0 +1,26 @@
++<domain type='qemu'>
++  <name>test</name>
++  <uuid>9aa4b45c-b9dd-45ef-91fe-862b27b4231f</uuid>
++  <memory unit='KiB'>262144</memory>
++  <currentMemory unit='KiB'>262144</currentMemory>
++  <vcpu placement='static'>1</vcpu>
++  <os>
++    <type arch='s390x' machine='s390-ccw-virtio-2.7'>hvm</type>
++    <boot dev='hd'/>
++  </os>
++  <cpu mode='custom' match='exact' check='none'>
++    <model fallback='forbid'>qemu</model>
++  </cpu>
++  <clock offset='utc'/>
++  <on_poweroff>destroy</on_poweroff>
++  <on_reboot>restart</on_reboot>
++  <on_crash>destroy</on_crash>
++  <devices>
++    <emulator>/usr/bin/qemu-system-s390x</emulator>
++    <controller type='pci' index='0' model='pci-root'/>
++    <memballoon model='virtio'>
++      <address type='ccw' cssid='0xfe' ssid='0x0' devno='0x0000'/>
++    </memballoon>
++    <panic model='s390'/>
++  </devices>
++</domain>
+diff --git a/tests/qemuxml2xmltest.c b/tests/qemuxml2xmltest.c
+index fa238ec339..ecd12c3d30 100644
+--- a/tests/qemuxml2xmltest.c
++++ b/tests/qemuxml2xmltest.c
+@@ -1463,6 +1463,8 @@ mymain(void)
+     DO_TEST_CAPS_ARCH_LATEST("ppc64-default-cpu-tcg-pseries-3.1", "ppc64");
+     DO_TEST_CAPS_ARCH_LATEST("ppc64-default-cpu-kvm-pseries-4.2", "ppc64");
+     DO_TEST_CAPS_ARCH_LATEST("ppc64-default-cpu-tcg-pseries-4.2", "ppc64");
++    DO_TEST_CAPS_ARCH_LATEST("s390-default-cpu-kvm-ccw-virtio-2.7", "s390x");
++    DO_TEST_CAPS_ARCH_LATEST("s390-default-cpu-tcg-ccw-virtio-2.7", "s390x");
+     DO_TEST_CAPS_ARCH_LATEST("s390-default-cpu-kvm-ccw-virtio-4.2", "s390x");
+     DO_TEST_CAPS_ARCH_LATEST("s390-default-cpu-tcg-ccw-virtio-4.2", "s390x");
+     DO_TEST_CAPS_ARCH_LATEST("x86_64-default-cpu-kvm-pc-4.2", "x86_64");
+-- 
+2.25.0
+

@@ -1,0 +1,59 @@
+From 457b0e74888f61b759e334d91479c258663835d5 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A1n=20Tomko?= <jtomko@redhat.com>
+Date: Fri, 7 Feb 2020 12:40:51 +0100
+Subject: [PATCH] qemu: preserve error on bandwidth rollback
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+We call APIs that reset the error in the rollback code.
+Preserve the error from the original call that failed.
+
+This turns the boringly cryptic:
+  error: Unable to set interface parameters
+  error: An error occurred, but the cause is unknown
+to the unexpectedly anarchist:
+  error: internal error: Child process (/usr/sbin/tc filter add
+  dev vnet1 parent ffff: protocol all u32 match u32 0 0 police
+  rate 4294968kbps burst 4294968kb mtu 64kb drop flowid :1)
+  unexpected exit status 1: Illegal "rate"
+  Illegal "police"
+
+Signed-off-by: Ján Tomko <jtomko@redhat.com>
+Fixes: f02e21cb3379a41cd42f2d8116f2d10dabace83b
+https://bugzilla.redhat.com/show_bug.cgi?id=1800505
+Reviewed-by: Daniel Henrique Barboza <danielhb413@gmail.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=457b0e7488
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ src/qemu/qemu_driver.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 9b244ec4f2..2813f084cd 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -11678,6 +11678,9 @@ qemuDomainSetInterfaceParameters(virDomainPtr dom,
+ 
+         if (virNetDevBandwidthSet(net->ifname, newBandwidth, false,
+                                   !virDomainNetTypeSharesHostView(net)) < 0) {
++            virErrorPtr orig_err;
++
++            virErrorPreserveLast(&orig_err);
+             ignore_value(virNetDevBandwidthSet(net->ifname,
+                                                net->bandwidth,
+                                                false,
+@@ -11686,6 +11689,7 @@ qemuDomainSetInterfaceParameters(virDomainPtr dom,
+                 ignore_value(virDomainNetBandwidthUpdate(net,
+                                                          net->bandwidth));
+             }
++            virErrorRestore(&orig_err);
+             goto endjob;
+         }
+ 
+-- 
+2.25.1
+

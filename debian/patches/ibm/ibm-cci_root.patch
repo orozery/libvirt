@@ -1,0 +1,11 @@
+--- a/src/security/apparmor/libvirt-qemu
++++ b/src/security/apparmor/libvirt-qemu
+@@ -201,5 +201,8 @@
+   / r, # harmless on any lsb compliant system
+   /sys/bus/nd/devices/{,**/} r,
+ 
++  # for backing store
++  /mnt/cci_root/backing*/** rk,
++
+   # Site-specific additions and overrides. See local/README for details.
+   #include <local/abstractions/libvirt-qemu>

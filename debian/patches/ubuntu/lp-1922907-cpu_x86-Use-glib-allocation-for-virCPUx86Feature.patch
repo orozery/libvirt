@@ -1,0 +1,71 @@
+From 51b6e9c1000151cc515804134a00ccb0d7b3e44a Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 10:40:29 +0100
+Subject: [PATCH] cpu_x86: Use glib allocation for virCPUx86Feature
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=51b6e9c100
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 22 ++++------------------
+ 1 file changed, 4 insertions(+), 18 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 5ffae3cebe..cf0f8a7120 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -893,28 +893,17 @@ x86VendorParse(xmlXPathContextPtr ctxt,
+ }
+ 
+ 
+-static virCPUx86FeaturePtr
+-x86FeatureNew(void)
+-{
+-    virCPUx86FeaturePtr feature;
+-
+-    if (VIR_ALLOC(feature) < 0)
+-        return NULL;
+-
+-    return feature;
+-}
+-
+-
+ static void
+ x86FeatureFree(virCPUx86FeaturePtr feature)
+ {
+     if (!feature)
+         return;
+ 
+-    VIR_FREE(feature->name);
++    g_free(feature->name);
+     virCPUx86DataClear(&feature->data);
+-    VIR_FREE(feature);
++    g_free(feature);
+ }
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(virCPUx86Feature, x86FeatureFree);
+ 
+ 
+ static int
+@@ -1056,11 +1045,8 @@ x86FeatureParse(xmlXPathContextPtr ctxt,
+     char *str = NULL;
+     int ret = -1;
+ 
+-    if (!(feature = x86FeatureNew()))
+-        goto cleanup;
+-
++    feature = g_new0(virCPUx86Feature, 1);
+     feature->migratable = true;
+-
+     feature->name = g_strdup(name);
+ 
+     if (x86FeatureFind(map, feature->name)) {
+-- 
+2.31.1
+

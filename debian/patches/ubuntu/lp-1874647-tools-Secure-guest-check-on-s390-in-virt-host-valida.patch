@@ -1,0 +1,137 @@
+From 0254ceab82f5e1f7b505730586d8c8337ecc5920 Mon Sep 17 00:00:00 2001
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Mon, 15 Jun 2020 10:28:09 +0200
+Subject: [PATCH] tools: Secure guest check on s390 in virt-host-validate
+
+Add checking in virt-host-validate for secure guest support
+on s390 for IBM Secure Execution.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Tested-by: Viktor Mihajlovski <mihajlov@linux.ibm.com>
+Reviewed-by: Paulo de Rezende Pinatti <ppinatti@linux.ibm.com>
+Reviewed-by: Bjoern Walk <bwalk@linux.ibm.com>
+Reviewed-by: Erik Skultety <eskultet@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=0254ceab82
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1874647
+Last-Update: 2020-08-31
+
+---
+ tools/virt-host-validate-common.c | 64 ++++++++++++++++++++++++++++++-
+ tools/virt-host-validate-common.h |  4 ++
+ tools/virt-host-validate-qemu.c   |  4 ++
+ 3 files changed, 70 insertions(+), 2 deletions(-)
+
+--- a/tools/virt-host-validate-common.c
++++ b/tools/virt-host-validate-common.c
+@@ -39,7 +39,8 @@ VIR_ENUM_IMPL(virHostValidateCPUFlag,
+               VIR_HOST_VALIDATE_CPU_FLAG_LAST,
+               "vmx",
+               "svm",
+-              "sie");
++              "sie",
++              "158");
+ 
+ static bool quiet;
+ 
+@@ -209,7 +210,8 @@ virBitmapPtr virHostValidateGetCPUFlags(
+          * on the architecture, so check possible prefixes */
+         if (!STRPREFIX(line, "flags") &&
+             !STRPREFIX(line, "Features") &&
+-            !STRPREFIX(line, "features"))
++            !STRPREFIX(line, "features") &&
++            !STRPREFIX(line, "facilities"))
+             continue;
+ 
+         /* fgets() includes the trailing newline in the output buffer,
+@@ -411,3 +413,61 @@ int virHostValidateIOMMU(const char *hvn
+     virHostMsgPass();
+     return 0;
+ }
++
++
++int virHostValidateSecureGuests(const char *hvname,
++                                virHostValidateLevel level)
++{
++    virBitmapPtr flags;
++    bool hasFac158 = false;
++    virArch arch = virArchFromHost();
++    g_autofree char *cmdline = NULL;
++    static const char *kIBMValues[] = {"y", "Y", "on", "ON", "oN", "On", "1"};
++
++    flags = virHostValidateGetCPUFlags();
++
++    if (flags && virBitmapIsBitSet(flags, VIR_HOST_VALIDATE_CPU_FLAG_FACILITY_158))
++        hasFac158 = true;
++
++    virBitmapFree(flags);
++
++    virHostMsgCheck(hvname, "%s", _("for secure guest support"));
++    if (ARCH_IS_S390(arch)) {
++        if (hasFac158) {
++            if (!virFileIsDir("/sys/firmware/uv")) {
++                virHostMsgFail(level, "IBM Secure Execution not supported by "
++                                      "the currently used kernel");
++                return 0;
++            }
++
++            if (virFileReadValueString(&cmdline, "/proc/cmdline") < 0)
++                return -1;
++
++            /* we're prefix matching rather than equality matching here, because
++             * kernel would treat even something like prot_virt='yFOO' as
++             * enabled
++             */
++            if (virKernelCmdlineMatchParam(cmdline, "prot_virt", kIBMValues,
++                                           G_N_ELEMENTS(kIBMValues),
++                                           VIR_KERNEL_CMDLINE_FLAGS_SEARCH_FIRST |
++                                           VIR_KERNEL_CMDLINE_FLAGS_CMP_PREFIX)) {
++                virHostMsgPass();
++                return 1;
++            } else {
++                virHostMsgFail(level,
++                               "IBM Secure Execution appears to be disabled "
++                               "in kernel. Add prot_virt=1 to kernel cmdline "
++                               "arguments");
++            }
++        } else {
++            virHostMsgFail(level, "Hardware or firmware does not provide "
++                                  "support for IBM Secure Execution");
++        }
++    } else {
++        virHostMsgFail(level,
++                       "Unknown if this platform has Secure Guest support");
++        return -1;
++    }
++
++    return 0;
++}
+--- a/tools/virt-host-validate-common.h
++++ b/tools/virt-host-validate-common.h
+@@ -38,6 +38,7 @@ typedef enum {
+     VIR_HOST_VALIDATE_CPU_FLAG_VMX = 0,
+     VIR_HOST_VALIDATE_CPU_FLAG_SVM,
+     VIR_HOST_VALIDATE_CPU_FLAG_SIE,
++    VIR_HOST_VALIDATE_CPU_FLAG_FACILITY_158,
+ 
+     VIR_HOST_VALIDATE_CPU_FLAG_LAST,
+ } virHostValidateCPUFlag;
+@@ -83,3 +84,6 @@ int virHostValidateCGroupControllers(con
+ 
+ int virHostValidateIOMMU(const char *hvname,
+                          virHostValidateLevel level);
++
++int virHostValidateSecureGuests(const char *hvname,
++                                virHostValidateLevel level);
+--- a/tools/virt-host-validate-qemu.c
++++ b/tools/virt-host-validate-qemu.c
+@@ -112,5 +112,9 @@ int virHostValidateQEMU(void)
+                              VIR_HOST_VALIDATE_WARN) < 0)
+         ret = -1;
+ 
++    if (virHostValidateSecureGuests("QEMU",
++                                    VIR_HOST_VALIDATE_WARN) < 0)
++        ret = -1;
++
+     return ret;
+ }

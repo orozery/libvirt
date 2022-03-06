@@ -1,0 +1,71 @@
+From 70f3041d39802e53a19901bee040ff33850cd5e0 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Thu, 26 Mar 2020 16:16:49 +0100
+Subject: [PATCH] cpu_x86: Don't check return value of x86ModelCopy
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Thanks to glib allocation functions which abort on OOM the function
+cannot ever return NULL.
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=70f3041d39
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 5a19cd4120..511c50bf06 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -1287,9 +1287,6 @@ x86ModelFromCPU(const virCPUDef *cpu,
+         model = g_new0(virCPUx86Model, 1);
+     }
+ 
+-    if (!model)
+-        return NULL;
+-
+     for (i = 0; i < cpu->nfeatures; i++) {
+         virCPUx86FeaturePtr feature;
+         virCPUFeaturePolicy fpol;
+@@ -1869,9 +1866,7 @@ x86Compute(virCPUDefPtr host,
+         return VIR_CPU_COMPARE_INCOMPATIBLE;
+     }
+ 
+-    if (!(diff = x86ModelCopy(host_model)))
+-        return VIR_CPU_COMPARE_ERROR;
+-
++    diff = x86ModelCopy(host_model);
+     x86DataSubtract(&diff->data, &cpu_optional->data);
+     x86DataSubtract(&diff->data, &cpu_require->data);
+     x86DataSubtract(&diff->data, &cpu_disable->data);
+@@ -1892,8 +1887,7 @@ x86Compute(virCPUDefPtr host,
+     }
+ 
+     if (guest) {
+-        if (!(guest_model = x86ModelCopy(host_model)))
+-            return VIR_CPU_COMPARE_ERROR;
++        guest_model = x86ModelCopy(host_model);
+ 
+         if (cpu->vendor && host_model->vendor &&
+             virCPUx86DataAddItem(&guest_model->data,
+@@ -3131,8 +3125,8 @@ virCPUx86ExpandFeatures(virCPUDefPtr cpu)
+         return -1;
+     }
+ 
+-    if (!(model = x86ModelCopy(model)) ||
+-        x86DataToCPUFeatures(expanded, host ? -1 : VIR_CPU_FEATURE_REQUIRE,
++    model = x86ModelCopy(model);
++    if (x86DataToCPUFeatures(expanded, host ? -1 : VIR_CPU_FEATURE_REQUIRE,
+                              &model->data, map) < 0)
+         return -1;
+ 
+-- 
+2.31.1
+

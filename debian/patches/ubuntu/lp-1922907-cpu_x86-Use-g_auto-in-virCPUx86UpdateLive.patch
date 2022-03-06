@@ -1,0 +1,101 @@
+From 2748e91c548cbc48a5ea499e06e62de528c10d20 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 10:30:10 +0100
+Subject: [PATCH] cpu_x86: Use g_auto* in virCPUx86UpdateLive
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Backport-Note: missing ac36a8246 caused some noise in virCPUx86UpdateLive
+Origin: backport, https://libvirt.org/git/?p=libvirt.git;a=commit;h=2748e91c54
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 42 +++++++++++++++---------------------------
+ 1 file changed, 15 insertions(+), 27 deletions(-)
+
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -2896,21 +2896,20 @@ virCPUx86UpdateLive(virCPUDefPtr cpu,
+                     virCPUDataPtr dataDisabled)
+ {
+     virCPUx86MapPtr map;
+-    virCPUx86ModelPtr model = NULL;
+-    virCPUx86Data enabled = VIR_CPU_X86_DATA_INIT;
+-    virCPUx86Data disabled = VIR_CPU_X86_DATA_INIT;
+-    virBuffer bufAdded = VIR_BUFFER_INITIALIZER;
+-    virBuffer bufRemoved = VIR_BUFFER_INITIALIZER;
+-    char *added = NULL;
+-    char *removed = NULL;
++    g_autoptr(virCPUx86Model) model = NULL;
++    g_auto(virCPUx86Data) enabled = VIR_CPU_X86_DATA_INIT;
++    g_auto(virCPUx86Data) disabled = VIR_CPU_X86_DATA_INIT;
++    g_auto(virBuffer) bufAdded = VIR_BUFFER_INITIALIZER;
++    g_auto(virBuffer) bufRemoved = VIR_BUFFER_INITIALIZER;
++    g_autofree char *added = NULL;
++    g_autofree char *removed = NULL;
+     size_t i;
+-    int ret = -1;
+ 
+     if (!(map = virCPUx86GetMap()))
+         return -1;
+ 
+     if (!(model = x86ModelFromCPU(cpu, map, -1)))
+-        goto cleanup;
++        return -1;
+ 
+     if (dataEnabled)
+         x86DataCopy(&enabled, &dataEnabled->data.x86);
+@@ -2928,7 +2927,7 @@ virCPUx86UpdateLive(virCPUDefPtr cpu,
+                 virBufferAsprintf(&bufAdded, "%s,", feature->name);
+             else if (virCPUDefUpdateFeature(cpu, feature->name,
+                                             VIR_CPU_FEATURE_REQUIRE) < 0)
+-                goto cleanup;
++                return -1;
+         }
+ 
+         if (x86DataIsSubset(&disabled, &feature->data) ||
+@@ -2939,7 +2938,7 @@ virCPUx86UpdateLive(virCPUDefPtr cpu,
+                 virBufferAsprintf(&bufRemoved, "%s,", feature->name);
+             else if (virCPUDefUpdateFeature(cpu, feature->name,
+                                             VIR_CPU_FEATURE_DISABLE) < 0)
+-                goto cleanup;
++                return -1;
+         }
+     }
+ 
+@@ -2965,27 +2964,17 @@ virCPUx86UpdateLive(virCPUDefPtr cpu,
+                            _("guest CPU doesn't match specification: "
+                              "missing features: %s"),
+                            removed);
+-        goto cleanup;
++        return -1;
+     }
+ 
+     if (cpu->check == VIR_CPU_CHECK_FULL &&
+         !x86DataIsEmpty(&disabled)) {
+         virReportError(VIR_ERR_OPERATION_FAILED, "%s",
+                        _("guest CPU doesn't match specification"));
+-        goto cleanup;
++        return -1;
+     }
+ 
+-    ret = 0;
+-
+- cleanup:
+-    x86ModelFree(model);
+-    virCPUx86DataClear(&enabled);
+-    virCPUx86DataClear(&disabled);
+-    VIR_FREE(added);
+-    VIR_FREE(removed);
+-    virBufferFreeAndReset(&bufAdded);
+-    virBufferFreeAndReset(&bufRemoved);
+-    return ret;
++    return 0;
+ }
+ 
+ 

@@ -1,0 +1,50 @@
+From 1c16f261d0764ff70fb33ece4367f25e741cdb74 Mon Sep 17 00:00:00 2001
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 13 Jan 2020 10:07:32 +0100
+Subject: [PATCH] qemuDomainSaveImageStartVM: Use VIR_AUTOCLOSE for
+ @intermediatefd
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Daniel Henrique Barboza <danielhb413@gmail.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=1c16f261d0
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ src/qemu/qemu_driver.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 57d1103c45..e1f8968136 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -6803,7 +6803,7 @@ qemuDomainSaveImageStartVM(virConnectPtr conn,
+     int ret = -1;
+     bool restored = false;
+     virObjectEventPtr event;
+-    int intermediatefd = -1;
++    VIR_AUTOCLOSE intermediatefd = -1;
+     virCommandPtr cmd = NULL;
+     g_autofree char *errbuf = NULL;
+     g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(driver);
+@@ -6829,6 +6829,7 @@ qemuDomainSaveImageStartVM(virConnectPtr conn,
+ 
+         if (virCommandRunAsync(cmd, NULL) < 0) {
+             *fd = intermediatefd;
++            intermediatefd = -1;
+             goto cleanup;
+         }
+     }
+@@ -6872,8 +6873,6 @@ qemuDomainSaveImageStartVM(virConnectPtr conn,
+ 
+         virErrorRestore(&orig_err);
+     }
+-    VIR_FORCE_CLOSE(intermediatefd);
+-
+     if (VIR_CLOSE(*fd) < 0) {
+         virReportSystemError(errno, _("cannot close file: %s"), path);
+         restored = false;
+-- 
+2.25.1
+

@@ -1,0 +1,99 @@
+From 75a4ec42f70b5324f95d7ffbbfbf7457620735e4 Mon Sep 17 00:00:00 2001
+From: "Mauro S. M. Rodrigues" <maurosr@linux.vnet.ibm.com>
+Date: Fri, 21 Feb 2020 15:10:45 -0300
+Subject: [PATCH] util: virhostcpu: Fail when fetching CPU Stats for invalid
+ cpu
+
+virHostCPUGetStatsLinux walks through every cpu in /proc/stat until it
+finds cpu%cpuNum that matches with the requested cpu.
+If none is found it logs the error but it should return -1, instead of 0.
+Otherwise virsh nodecpustats --cpu <invalid cpu number> and API bindings
+don't fail properly, printing a blank line instead of an error message.
+
+This patch also includes an additional test for virhostcputest to avoid
+this regression to happen again in the future.
+
+Fixes: 93af79fba3fd75a8df6b7ca608719dd97f9511a0
+Reported-by: Satheesh Rajendran <satheera@in.ibm.com>
+Signed-off-by: Mauro S. M. Rodrigues <maurosr@linux.vnet.ibm.com>
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Tested-by: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=75a4ec42f70b5
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868528
+Last-Update: 2020-03-25
+
+---
+ src/util/virhostcpu.c  |  2 +-
+ tests/virhostcputest.c | 21 ++++++++++++++++++---
+ 2 files changed, 19 insertions(+), 4 deletions(-)
+
+diff --git a/src/util/virhostcpu.c b/src/util/virhostcpu.c
+index 41033b7473..721d959d46 100644
+--- a/src/util/virhostcpu.c
++++ b/src/util/virhostcpu.c
+@@ -852,7 +852,7 @@ virHostCPUGetStatsLinux(FILE *procstat,
+                         _("Invalid cpuNum in %s"),
+                         __FUNCTION__);
+ 
+-    return 0;
++    return -1;
+ }
+ 
+ 
+diff --git a/tests/virhostcputest.c b/tests/virhostcputest.c
+index 7865b61578..70a723098b 100644
+--- a/tests/virhostcputest.c
++++ b/tests/virhostcputest.c
+@@ -196,6 +196,7 @@ linuxTestHostCPU(const void *opaque)
+ struct nodeCPUStatsData {
+     const char *name;
+     int ncpus;
++    bool shouldFail;
+ };
+ 
+ static int
+@@ -214,6 +215,19 @@ linuxTestNodeCPUStats(const void *data)
+     result = linuxCPUStatsCompareFiles(cpustatfile,
+                                        testData->ncpus,
+                                        outfile);
++    if (result < 0) {
++        if (testData->shouldFail) {
++            /* Expected error */
++            result = 0;
++        }
++    } else {
++        if (testData->shouldFail) {
++            fprintf(stderr, "Expected a failure, got success");
++            result = -1;
++        }
++    }
++
++
+     VIR_FREE(cpustatfile);
+     VIR_FREE(outfile);
+     return result;
+@@ -258,14 +272,15 @@ mymain(void)
+         if (virTestRun(nodeData[i].testName, linuxTestHostCPU, &nodeData[i]) != 0)
+             ret = -1;
+ 
+-# define DO_TEST_CPU_STATS(name, ncpus) \
++# define DO_TEST_CPU_STATS(name, ncpus, shouldFail) \
+     do { \
+-        static struct nodeCPUStatsData data = { name, ncpus }; \
++        static struct nodeCPUStatsData data = { name, ncpus, shouldFail}; \
+         if (virTestRun("CPU stats " name, linuxTestNodeCPUStats, &data) < 0) \
+             ret = -1; \
+     } while (0)
+ 
+-    DO_TEST_CPU_STATS("24cpu", 24);
++    DO_TEST_CPU_STATS("24cpu", 24, false);
++    DO_TEST_CPU_STATS("24cpu", 25, true);
+ 
+     return ret == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+ }
+-- 
+2.25.1
+

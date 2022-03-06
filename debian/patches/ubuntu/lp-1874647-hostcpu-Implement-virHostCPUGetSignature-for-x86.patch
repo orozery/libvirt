@@ -1,0 +1,165 @@
+From 44f826e4a0a865fce0059cdd826432b8144f6e3e Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 1 Apr 2020 19:55:27 +0200
+Subject: [PATCH] hostcpu: Implement virHostCPUGetSignature for x86
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=44f826e4a0
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1874647
+Last-Update: 2020-08-31
+
+---
+ src/util/virhostcpu.c                         | 50 +++++++++++++++++--
+ .../linux-x86_64-test1.signature              |  1 +
+ .../linux-x86_64-test2.signature              |  1 +
+ .../linux-x86_64-test3.signature              |  1 +
+ .../linux-x86_64-test4.signature              |  1 +
+ .../linux-x86_64-test5.signature              |  1 +
+ .../linux-x86_64-test6.signature              |  1 +
+ .../linux-x86_64-test7.signature              |  1 +
+ .../linux-x86_64-test8.signature              |  1 +
+ .../linux-x86_64-with-die.signature           |  1 +
+ 10 files changed, 56 insertions(+), 3 deletions(-)
+ create mode 100644 tests/virhostcpudata/linux-x86_64-test1.signature
+ create mode 100644 tests/virhostcpudata/linux-x86_64-test2.signature
+ create mode 100644 tests/virhostcpudata/linux-x86_64-test3.signature
+ create mode 100644 tests/virhostcpudata/linux-x86_64-test4.signature
+ create mode 100644 tests/virhostcpudata/linux-x86_64-test5.signature
+ create mode 100644 tests/virhostcpudata/linux-x86_64-test6.signature
+ create mode 100644 tests/virhostcpudata/linux-x86_64-test7.signature
+ create mode 100644 tests/virhostcpudata/linux-x86_64-test8.signature
+ create mode 100644 tests/virhostcpudata/linux-x86_64-with-die.signature
+
+diff --git a/src/util/virhostcpu.c b/src/util/virhostcpu.c
+index bfef022f64..15b79f7090 100644
+--- a/src/util/virhostcpu.c
++++ b/src/util/virhostcpu.c
+@@ -1418,10 +1418,54 @@ virHostCPUGetTscInfo(void)
+           (defined(__linux__) || defined(__FreeBSD__)) */
+ 
+ int
+-virHostCPUReadSignature(virArch arch G_GNUC_UNUSED,
+-                        FILE *cpuinfo G_GNUC_UNUSED,
+-                        char **signature G_GNUC_UNUSED)
++virHostCPUReadSignature(virArch arch,
++                        FILE *cpuinfo,
++                        char **signature)
+ {
++    size_t lineLen = 1024;
++    g_autofree char *line = g_new0(char, lineLen);
++    g_autofree char *vendor = NULL;
++    g_autofree char *name = NULL;
++    g_autofree char *family = NULL;
++    g_autofree char *model = NULL;
++    g_autofree char *stepping = NULL;
++
++    if (!ARCH_IS_X86(arch))
++        return 0;
++
++    while (fgets(line, lineLen, cpuinfo)) {
++        g_auto(GStrv) parts = g_strsplit(line, ": ", 2);
++
++        if (g_strv_length(parts) != 2)
++            continue;
++
++        g_strstrip(parts[0]);
++        g_strstrip(parts[1]);
++
++        if (STREQ(parts[0], "vendor_id")) {
++            if (!vendor)
++                vendor = g_steal_pointer(&parts[1]);
++        } else if (STREQ(parts[0], "model name")) {
++            if (!name)
++                name = g_steal_pointer(&parts[1]);
++        } else if (STREQ(parts[0], "cpu family")) {
++            if (!family)
++                family = g_steal_pointer(&parts[1]);
++        } else if (STREQ(parts[0], "model")) {
++            if (!model)
++                model = g_steal_pointer(&parts[1]);
++        } else if (STREQ(parts[0], "stepping")) {
++            if (!stepping)
++                stepping = g_steal_pointer(&parts[1]);
++        }
++
++        if (vendor && name && family && model && stepping) {
++            *signature = g_strdup_printf("%s, %s, family: %s, model: %s, stepping: %s",
++                                         vendor, name, family, model, stepping);
++            return 0;
++        }
++    }
++
+     return 0;
+ }
+ 
+diff --git a/tests/virhostcpudata/linux-x86_64-test1.signature b/tests/virhostcpudata/linux-x86_64-test1.signature
+new file mode 100644
+index 0000000000..953337a4cb
+--- /dev/null
++++ b/tests/virhostcpudata/linux-x86_64-test1.signature
+@@ -0,0 +1 @@
++GenuineIntel, Intel(R) Xeon(TM) CPU 2.80GHz, family: 15, model: 4, stepping: 8
+diff --git a/tests/virhostcpudata/linux-x86_64-test2.signature b/tests/virhostcpudata/linux-x86_64-test2.signature
+new file mode 100644
+index 0000000000..bbeb084944
+--- /dev/null
++++ b/tests/virhostcpudata/linux-x86_64-test2.signature
+@@ -0,0 +1 @@
++GenuineIntel, Intel(R) Core(TM)2 Duo CPU     T9600  @ 2.80GHz, family: 6, model: 23, stepping: 10
+diff --git a/tests/virhostcpudata/linux-x86_64-test3.signature b/tests/virhostcpudata/linux-x86_64-test3.signature
+new file mode 100644
+index 0000000000..b94bbc1701
+--- /dev/null
++++ b/tests/virhostcpudata/linux-x86_64-test3.signature
+@@ -0,0 +1 @@
++AuthenticAMD, AMD Opteron(tm) Processor 6172, family: 16, model: 9, stepping: 1
+diff --git a/tests/virhostcpudata/linux-x86_64-test4.signature b/tests/virhostcpudata/linux-x86_64-test4.signature
+new file mode 100644
+index 0000000000..9237332d59
+--- /dev/null
++++ b/tests/virhostcpudata/linux-x86_64-test4.signature
+@@ -0,0 +1 @@
++GenuineIntel, Intel(R) Xeon(R) CPU E7- 8837  @ 2.67GHz, family: 6, model: 47, stepping: 2
+diff --git a/tests/virhostcpudata/linux-x86_64-test5.signature b/tests/virhostcpudata/linux-x86_64-test5.signature
+new file mode 100644
+index 0000000000..dbaba8ee08
+--- /dev/null
++++ b/tests/virhostcpudata/linux-x86_64-test5.signature
+@@ -0,0 +1 @@
++GenuineIntel, Intel(R) Xeon(R) CPU           E5320  @ 1.86GHz, family: 6, model: 15, stepping: 7
+diff --git a/tests/virhostcpudata/linux-x86_64-test6.signature b/tests/virhostcpudata/linux-x86_64-test6.signature
+new file mode 100644
+index 0000000000..e5d8476e06
+--- /dev/null
++++ b/tests/virhostcpudata/linux-x86_64-test6.signature
+@@ -0,0 +1 @@
++GenuineIntel, Intel(R) Xeon(R) CPU           E5640  @ 2.67GHz, family: 6, model: 44, stepping: 2
+diff --git a/tests/virhostcpudata/linux-x86_64-test7.signature b/tests/virhostcpudata/linux-x86_64-test7.signature
+new file mode 100644
+index 0000000000..a2e91b270b
+--- /dev/null
++++ b/tests/virhostcpudata/linux-x86_64-test7.signature
+@@ -0,0 +1 @@
++AuthenticAMD, AMD Opteron(tm) Processor 6174, family: 16, model: 9, stepping: 1
+diff --git a/tests/virhostcpudata/linux-x86_64-test8.signature b/tests/virhostcpudata/linux-x86_64-test8.signature
+new file mode 100644
+index 0000000000..e873053f3b
+--- /dev/null
++++ b/tests/virhostcpudata/linux-x86_64-test8.signature
+@@ -0,0 +1 @@
++AuthenticAMD, AMD Opteron(tm) Processor 6282 SE, family: 21, model: 1, stepping: 2
+diff --git a/tests/virhostcpudata/linux-x86_64-with-die.signature b/tests/virhostcpudata/linux-x86_64-with-die.signature
+new file mode 100644
+index 0000000000..ce0545cd38
+--- /dev/null
++++ b/tests/virhostcpudata/linux-x86_64-with-die.signature
+@@ -0,0 +1 @@
++GenuineIntel, QEMU Virtual CPU version 2.5+, family: 6, model: 6, stepping: 3
+-- 
+2.28.0
+

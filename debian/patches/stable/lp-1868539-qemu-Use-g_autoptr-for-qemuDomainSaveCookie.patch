@@ -1,0 +1,140 @@
+From 3203ad6cfd617fb11d4bb47e514c370b6624641b Mon Sep 17 00:00:00 2001
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Mon, 13 Jan 2020 11:06:39 +0100
+Subject: [PATCH] qemu: Use g_autoptr() for qemuDomainSaveCookie
+
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Daniel Henrique Barboza <danielhb413@gmail.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=3203ad6cfd
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1868539
+Last-Update: 2020-03-23
+
+---
+ src/qemu/qemu_domain.c | 28 ++++++++++------------------
+ src/qemu/qemu_domain.h |  1 +
+ src/qemu/qemu_driver.c |  6 ++----
+ 3 files changed, 13 insertions(+), 22 deletions(-)
+
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index a6dde15bad..128bcaee7d 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -15997,27 +15997,23 @@ qemuDomainSaveCookiePtr
+ qemuDomainSaveCookieNew(virDomainObjPtr vm)
+ {
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+-    qemuDomainSaveCookiePtr cookie = NULL;
++    g_autoptr(qemuDomainSaveCookie) cookie = NULL;
+ 
+     if (qemuDomainInitialize() < 0)
+-        goto error;
++        return NULL;
+ 
+     if (!(cookie = virObjectNew(qemuDomainSaveCookieClass)))
+-        goto error;
++        return NULL;
+ 
+     if (priv->origCPU && !(cookie->cpu = virCPUDefCopy(vm->def->cpu)))
+-        goto error;
++        return NULL;
+ 
+     cookie->slirpHelper = qemuDomainGetSlirpHelperOk(vm);
+ 
+     VIR_DEBUG("Save cookie %p, cpu=%p, slirpHelper=%d",
+               cookie, cookie->cpu, cookie->slirpHelper);
+ 
+-    return cookie;
+-
+- error:
+-    virObjectUnref(cookie);
+-    return NULL;
++    return g_steal_pointer(&cookie);
+ }
+ 
+ 
+@@ -16025,26 +16021,22 @@ static int
+ qemuDomainSaveCookieParse(xmlXPathContextPtr ctxt G_GNUC_UNUSED,
+                           virObjectPtr *obj)
+ {
+-    qemuDomainSaveCookiePtr cookie = NULL;
++    g_autoptr(qemuDomainSaveCookie) cookie = NULL;
+ 
+     if (qemuDomainInitialize() < 0)
+-        goto error;
++        return -1;
+ 
+     if (!(cookie = virObjectNew(qemuDomainSaveCookieClass)))
+-        goto error;
++        return -1;
+ 
+     if (virCPUDefParseXML(ctxt, "./cpu[1]", VIR_CPU_TYPE_GUEST,
+                           &cookie->cpu) < 0)
+-        goto error;
++        return -1;
+ 
+     cookie->slirpHelper = virXPathBoolean("boolean(./slirpHelper)", ctxt) > 0;
+ 
+-    *obj = (virObjectPtr) cookie;
++    *obj = (virObjectPtr) g_steal_pointer(&cookie);
+     return 0;
+-
+- error:
+-    virObjectUnref(cookie);
+-    return -1;
+ }
+ 
+ 
+diff --git a/src/qemu/qemu_domain.h b/src/qemu/qemu_domain.h
+index c6afc484f6..60b80297fa 100644
+--- a/src/qemu/qemu_domain.h
++++ b/src/qemu/qemu_domain.h
+@@ -610,6 +610,7 @@ struct _qemuDomainSaveCookie {
+     bool slirpHelper;
+ };
+ 
++G_DEFINE_AUTOPTR_CLEANUP_FUNC(qemuDomainSaveCookie, virObjectUnref);
+ 
+ typedef struct _qemuDomainXmlNsDef qemuDomainXmlNsDef;
+ typedef qemuDomainXmlNsDef *qemuDomainXmlNsDefPtr;
+diff --git a/src/qemu/qemu_driver.c b/src/qemu/qemu_driver.c
+index 3c1fb11b10..99829ad229 100644
+--- a/src/qemu/qemu_driver.c
++++ b/src/qemu/qemu_driver.c
+@@ -3293,7 +3293,7 @@ qemuDomainSaveInternal(virQEMUDriverPtr driver,
+     virObjectEventPtr event = NULL;
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+     virQEMUSaveDataPtr data = NULL;
+-    qemuDomainSaveCookiePtr cookie = NULL;
++    g_autoptr(qemuDomainSaveCookie) cookie = NULL;
+ 
+     if (!qemuMigrationSrcIsAllowed(driver, vm, false, 0))
+         goto cleanup;
+@@ -3399,7 +3399,6 @@ qemuDomainSaveInternal(virQEMUDriverPtr driver,
+         qemuDomainRemoveInactiveJob(driver, vm);
+ 
+  cleanup:
+-    virObjectUnref(cookie);
+     virQEMUSaveDataFree(data);
+     virObjectEventStateQueue(driver->domainEventState, event);
+     return ret;
+@@ -6808,7 +6807,7 @@ qemuDomainSaveImageStartVM(virConnectPtr conn,
+     g_autofree char *errbuf = NULL;
+     g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(driver);
+     virQEMUSaveHeaderPtr header = &data->header;
+-    qemuDomainSaveCookiePtr cookie = NULL;
++    g_autoptr(qemuDomainSaveCookie) cookie = NULL;
+ 
+     if (virSaveCookieParseString(data->cookie, (virObjectPtr *)&cookie,
+                                  virDomainXMLOptionGetSaveCookie(driver->xmlopt)) < 0)
+@@ -6919,7 +6918,6 @@ qemuDomainSaveImageStartVM(virConnectPtr conn,
+     ret = 0;
+ 
+  cleanup:
+-    virObjectUnref(cookie);
+     if (qemuSecurityRestoreSavedStateLabel(driver, vm, path) < 0)
+         VIR_WARN("failed to restore save state label on %s", path);
+     return ret;
+-- 
+2.25.1
+

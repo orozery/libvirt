@@ -1,0 +1,68 @@
+From 4f2fdad36db2da1aa139470846b3f60f65da8424 Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Wed, 25 Mar 2020 10:29:39 +0100
+Subject: [PATCH] cpu_x86: Use g_auto* in x86DataToCPU
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Ján Tomko <jtomko@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=4f2fdad36d
+Bug-Ubuntu: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1922907
+Last-Update: 2021-04-07
+
+---
+ src/cpu/cpu_x86.c | 20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)
+
+diff --git a/src/cpu/cpu_x86.c b/src/cpu/cpu_x86.c
+index 3c08edcd73..be4f40f470 100644
+--- a/src/cpu/cpu_x86.c
++++ b/src/cpu/cpu_x86.c
+@@ -771,9 +771,9 @@ x86DataToCPU(const virCPUx86Data *data,
+              virCPUx86MapPtr map,
+              virDomainCapsCPUModelPtr hvModel)
+ {
+-    virCPUDefPtr cpu;
+-    virCPUx86Data copy = VIR_CPU_X86_DATA_INIT;
+-    virCPUx86Data modelData = VIR_CPU_X86_DATA_INIT;
++    g_autoptr(virCPUDef) cpu = NULL;
++    g_auto(virCPUx86Data) copy = VIR_CPU_X86_DATA_INIT;
++    g_auto(virCPUx86Data) modelData = VIR_CPU_X86_DATA_INIT;
+     virCPUx86VendorPtr vendor;
+ 
+     cpu = virCPUDefNew();
+@@ -801,7 +801,7 @@ x86DataToCPU(const virCPUx86Data *data,
+             if ((feature = x86FeatureFind(map, *blocker)) &&
+                 !x86DataIsSubset(&copy, &feature->data))
+                 if (x86DataAdd(&modelData, &feature->data) < 0)
+-                    goto error;
++                    return NULL;
+         }
+     }
+ 
+@@ -810,17 +810,9 @@ x86DataToCPU(const virCPUx86Data *data,
+ 
+     if (x86DataToCPUFeatures(cpu, VIR_CPU_FEATURE_REQUIRE, &copy, map) ||
+         x86DataToCPUFeatures(cpu, VIR_CPU_FEATURE_DISABLE, &modelData, map))
+-        goto error;
+-
+- cleanup:
+-    virCPUx86DataClear(&modelData);
+-    virCPUx86DataClear(&copy);
+-    return cpu;
++        return NULL;
+ 
+- error:
+-    virCPUDefFree(cpu);
+-    cpu = NULL;
+-    goto cleanup;
++    return g_steal_pointer(&cpu);
+ }
+ 
+ 
+-- 
+2.31.1
+

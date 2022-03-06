@@ -1,0 +1,57 @@
+From d409411213152d204b85daf05468c4f7f17c1616 Mon Sep 17 00:00:00 2001
+From: Peter Krempa <pkrempa@redhat.com>
+Date: Thu, 30 Jan 2020 15:06:14 +0100
+Subject: [PATCH] qemuMigrationCookieAddNBD: Remove 'ret' variable and
+ 'cleanup' label
+
+Signed-off-by: Peter Krempa <pkrempa@redhat.com>
+Reviewed-by: Michal Privoznik <mprivozn@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=d409411213
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1929202
+Last-Update: 2021-07-20
+
+---
+ src/qemu/qemu_migration_cookie.c | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/qemu/qemu_migration_cookie.c b/src/qemu/qemu_migration_cookie.c
+index 968a9b589c..734d95f4f1 100644
+--- a/src/qemu/qemu_migration_cookie.c
++++ b/src/qemu/qemu_migration_cookie.c
+@@ -456,7 +456,7 @@ qemuMigrationCookieAddNBD(qemuMigrationCookiePtr mig,
+     qemuDomainObjPrivatePtr priv = vm->privateData;
+     g_autoptr(virHashTable) stats = virHashNew(virHashValueFree);
+     size_t i;
+-    int ret = -1, rc;
++    int rc;
+ 
+     /* It is not a bug if there already is a NBD data */
+     qemuMigrationCookieNBDFree(mig->nbd);
+@@ -473,10 +473,10 @@ qemuMigrationCookieAddNBD(qemuMigrationCookiePtr mig,
+     mig->nbd->ndisks = 0;
+ 
+     if (qemuDomainObjEnterMonitorAsync(driver, vm, priv->job.asyncJob) < 0)
+-        goto cleanup;
++        return -1;
+     rc = qemuMonitorBlockStatsUpdateCapacity(priv->mon, stats, false);
+     if (qemuDomainObjExitMonitor(driver, vm) < 0 || rc < 0)
+-        goto cleanup;
++        return -1;
+ 
+     for (i = 0; i < vm->def->ndisks; i++) {
+         virDomainDiskDefPtr disk = vm->def->disks[i];
+@@ -491,9 +491,7 @@ qemuMigrationCookieAddNBD(qemuMigrationCookiePtr mig,
+         mig->nbd->ndisks++;
+     }
+ 
+-    ret = 0;
+- cleanup:
+-    return ret;
++    return 0;
+ }
+ 
+ 
+-- 
+2.32.0
+

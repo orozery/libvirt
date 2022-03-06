@@ -1,0 +1,695 @@
+From 4e338aa22b16718422bbdfb41d2a7d5a45734b18 Mon Sep 17 00:00:00 2001
+From: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Date: Wed, 18 Mar 2020 11:13:19 +0100
+Subject: [PATCH] cpu_map: Add more -noTSX x86 CPU models
+
+One of the mitigation methods for TAA[1] is to disable TSX
+support on the host system.  Linux added a mechanism to disable
+TSX globally through the kernel command line, and many Linux
+distributions now default to tsx=off.  This makes existing CPU
+models that have HLE and RTM enabled not usable anymore.
+
+Add new versions of all CPU models that have the HLE and RTM
+features enabled, that can be used when TSX is disabled in the
+host system.
+
+On systems disabling the features without those types defined
+in cpu-maps users end up without modern CPU types in the list
+of usable CPUs to use in the likes of virsh domcapabilities
+or tools higher in the stack like virt-manager.
+
+This adds:
+-Cascadelake-Server-noTSX
+-Icelake-Client-noTSX
+-Icelake-Server-noTSX
+-Skylake-Server-noTSX-IBRS
+-Skylake-Client-noTSX-IBRS
+
+Introduced in QEMU by commit v4.2.0-rc2-3-g9ab2237f19 (function)
+                  and commit v4.2.0-rc2-4-g02fa60d101 (names)
+
+References:
+
+    [1] TAA, TSX asynchronous Abort:
+        https://software.intel.com/security-software-guidance/insights/deep-dive-intel-transactional-synchronization-extensions-intel-tsx-asynchronous-abort
+        https://www.kernel.org/doc/html/latest/admin-guide/hw-vuln/tsx_async_abort.html
+
+Fixes: https://bugs.launchpad.net/ubuntu/+source/libvirt/+bug/1853200
+
+Signed-off-by: Christian Ehrhardt <christian.ehrhardt@canonical.com>
+Message-Id: <20200310104806.2723-2-christian.ehrhardt@canonical.com>
+Reviewed-by: Jiri Denemark <jdenemar@redhat.com>
+
+Backport Note: upstream also had data on qemu 5.0 which doesn't exist in
+focals libvirt yet - removed those hunks
+
+Origin: backport, https://libvirt.org/git/?p=libvirt.git;a=commit;h=dd17a4eba8
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1853200
+Last-Update: 2020-03-23
+
+---
+ src/cpu_map/Makefile.inc.am                   |  5 ++
+ src/cpu_map/index.xml                         |  5 ++
+ src/cpu_map/x86_Cascadelake-Server-noTSX.xml  | 78 ++++++++++++++++
+ src/cpu_map/x86_Icelake-Client-noTSX.xml      | 81 +++++++++++++++++
+ src/cpu_map/x86_Icelake-Server-noTSX.xml      | 90 +++++++++++++++++++
+ src/cpu_map/x86_Skylake-Client-noTSX-IBRS.xml | 73 +++++++++++++++
+ src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml | 75 ++++++++++++++++
+ .../x86_64-cpuid-Core-i7-8550U-guest.xml      |  4 +-
+ .../x86_64-cpuid-Core-i7-8550U-host.xml       | 11 +--
+ .../x86_64-cpuid-Core-i7-8550U-json.xml       |  4 +-
+ .../domaincapsdata/qemu_4.2.0-q35.x86_64.xml  |  5 ++
+ .../domaincapsdata/qemu_4.2.0-tcg.x86_64.xml  |  5 ++
+ tests/domaincapsdata/qemu_4.2.0.x86_64.xml    |  5 ++
+ .../domaincapsdata/qemu_5.0.0-q35.x86_64.xml  |  5 ++
+ .../domaincapsdata/qemu_5.0.0-tcg.x86_64.xml  |  5 ++
+ tests/domaincapsdata/qemu_5.0.0.x86_64.xml    |  5 ++
+ 16 files changed, 440 insertions(+), 16 deletions(-)
+ create mode 100644 src/cpu_map/x86_Cascadelake-Server-noTSX.xml
+ create mode 100644 src/cpu_map/x86_Icelake-Client-noTSX.xml
+ create mode 100644 src/cpu_map/x86_Icelake-Server-noTSX.xml
+ create mode 100644 src/cpu_map/x86_Skylake-Client-noTSX-IBRS.xml
+ create mode 100644 src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml
+
+--- a/src/cpu_map/Makefile.inc.am
++++ b/src/cpu_map/Makefile.inc.am
+@@ -20,6 +20,7 @@ cpumap_DATA = \
+ 	cpu_map/x86_Broadwell-noTSX.xml \
+ 	cpu_map/x86_Broadwell-noTSX-IBRS.xml \
+ 	cpu_map/x86_Cascadelake-Server.xml \
++	cpu_map/x86_Cascadelake-Server-noTSX.xml \
+ 	cpu_map/x86_Conroe.xml \
+ 	cpu_map/x86_core2duo.xml \
+ 	cpu_map/x86_coreduo.xml \
+@@ -33,7 +34,9 @@ cpumap_DATA = \
+ 	cpu_map/x86_Haswell-noTSX.xml \
+ 	cpu_map/x86_Haswell-noTSX-IBRS.xml \
+ 	cpu_map/x86_Icelake-Client.xml \
++	cpu_map/x86_Icelake-Client-noTSX.xml \
+ 	cpu_map/x86_Icelake-Server.xml \
++	cpu_map/x86_Icelake-Server-noTSX.xml \
+ 	cpu_map/x86_IvyBridge.xml \
+ 	cpu_map/x86_IvyBridge-IBRS.xml \
+ 	cpu_map/x86_kvm32.xml \
+@@ -58,8 +61,10 @@ cpumap_DATA = \
+ 	cpu_map/x86_SandyBridge-IBRS.xml \
+ 	cpu_map/x86_Skylake-Client.xml \
+ 	cpu_map/x86_Skylake-Client-IBRS.xml \
++	cpu_map/x86_Skylake-Client-noTSX-IBRS.xml \
+ 	cpu_map/x86_Skylake-Server.xml \
+ 	cpu_map/x86_Skylake-Server-IBRS.xml \
++	cpu_map/x86_Skylake-Server-noTSX-IBRS.xml \
+ 	cpu_map/x86_Westmere.xml \
+ 	cpu_map/x86_Westmere-IBRS.xml \
+ 	$(NULL)
+--- a/src/cpu_map/index.xml
++++ b/src/cpu_map/index.xml
+@@ -44,11 +44,16 @@
+     <include filename="x86_Broadwell-IBRS.xml"/>
+     <include filename="x86_Skylake-Client.xml"/>
+     <include filename="x86_Skylake-Client-IBRS.xml"/>
++    <include filename="x86_Skylake-Client-noTSX-IBRS.xml"/>
+     <include filename="x86_Skylake-Server.xml"/>
+     <include filename="x86_Skylake-Server-IBRS.xml"/>
++    <include filename="x86_Skylake-Server-noTSX-IBRS.xml"/>
+     <include filename="x86_Cascadelake-Server.xml"/>
++    <include filename="x86_Cascadelake-Server-noTSX.xml"/>
+     <include filename="x86_Icelake-Client.xml"/>
++    <include filename="x86_Icelake-Client-noTSX.xml"/>
+     <include filename="x86_Icelake-Server.xml"/>
++    <include filename="x86_Icelake-Server-noTSX.xml"/>
+ 
+     <!-- AMD CPUs -->
+     <include filename="x86_athlon.xml"/>
+--- /dev/null
++++ b/src/cpu_map/x86_Cascadelake-Server-noTSX.xml
+@@ -0,0 +1,78 @@
++<cpus>
++  <model name='Cascadelake-Server-noTSX'>
++    <signature family='6' model='85'/> <!-- 050654 -->
++    <vendor name='Intel'/>
++    <feature name='3dnowprefetch'/>
++    <feature name='abm'/>
++    <feature name='adx'/>
++    <feature name='aes'/>
++    <feature name='apic'/>
++    <feature name='arat'/>
++    <feature name='avx'/>
++    <feature name='avx2'/>
++    <feature name='avx512bw'/>
++    <feature name='avx512cd'/>
++    <feature name='avx512dq'/>
++    <feature name='avx512f'/>
++    <feature name='avx512vl'/>
++    <feature name='avx512vnni'/>
++    <feature name='bmi1'/>
++    <feature name='bmi2'/>
++    <feature name='clflush'/>
++    <feature name='clflushopt'/>
++    <feature name='clwb'/>
++    <feature name='cmov'/>
++    <feature name='cx16'/>
++    <feature name='cx8'/>
++    <feature name='de'/>
++    <feature name='erms'/>
++    <feature name='f16c'/>
++    <feature name='fma'/>
++    <feature name='fpu'/>
++    <feature name='fsgsbase'/>
++    <feature name='fxsr'/>
++    <feature name='invpcid'/>
++    <feature name='lahf_lm'/>
++    <feature name='lm'/>
++    <feature name='mca'/>
++    <feature name='mce'/>
++    <feature name='mmx'/>
++    <feature name='movbe'/>
++    <feature name='mpx'/>
++    <feature name='msr'/>
++    <feature name='mtrr'/>
++    <feature name='nx'/>
++    <feature name='pae'/>
++    <feature name='pat'/>
++    <feature name='pcid'/>
++    <feature name='pclmuldq'/>
++    <feature name='pdpe1gb'/>
++    <feature name='pge'/>
++    <feature name='pni'/>
++    <feature name='popcnt'/>
++    <feature name='pse'/>
++    <feature name='pse36'/>
++    <feature name='rdrand'/>
++    <feature name='rdseed'/>
++    <feature name='rdtscp'/>
++    <feature name='sep'/>
++    <feature name='smap'/>
++    <feature name='smep'/>
++    <feature name='spec-ctrl'/>
++    <feature name='ssbd'/>
++    <feature name='sse'/>
++    <feature name='sse2'/>
++    <feature name='sse4.1'/>
++    <feature name='sse4.2'/>
++    <feature name='ssse3'/>
++    <feature name='syscall'/>
++    <feature name='tsc'/>
++    <feature name='tsc-deadline'/>
++    <feature name='vme'/>
++    <feature name='x2apic'/>
++    <feature name='xgetbv1'/>
++    <feature name='xsave'/>
++    <feature name='xsavec'/>
++    <feature name='xsaveopt'/>
++  </model>
++</cpus>
+--- /dev/null
++++ b/src/cpu_map/x86_Icelake-Client-noTSX.xml
+@@ -0,0 +1,81 @@
++<cpus>
++  <model name='Icelake-Client-noTSX'>
++    <signature family='6' model='126'/> <!-- 0706e0 -->
++    <vendor name='Intel'/>
++    <feature name='3dnowprefetch'/>
++    <feature name='abm'/>
++    <feature name='adx'/>
++    <feature name='aes'/>
++    <feature name='apic'/>
++    <feature name='arat'/>
++    <feature name='avx'/>
++    <feature name='avx2'/>
++    <feature name='avx512-vpopcntdq'/>
++    <feature name='avx512bitalg'/>
++    <feature name='avx512vbmi'/>
++    <feature name='avx512vbmi2'/>
++    <feature name='avx512vnni'/>
++    <feature name='bmi1'/>
++    <feature name='bmi2'/>
++    <feature name='clflush'/>
++    <feature name='cmov'/>
++    <feature name='cx16'/>
++    <feature name='cx8'/>
++    <feature name='de'/>
++    <feature name='erms'/>
++    <feature name='f16c'/>
++    <feature name='fma'/>
++    <feature name='fpu'/>
++    <feature name='fsgsbase'/>
++    <feature name='fxsr'/>
++    <feature name='gfni'/>
++    <feature name='intel-pt'/>
++    <feature name='invpcid'/>
++    <feature name='lahf_lm'/>
++    <feature name='lm'/>
++    <feature name='mca'/>
++    <feature name='mce'/>
++    <feature name='mmx'/>
++    <feature name='movbe'/>
++    <feature name='mpx'/>
++    <feature name='msr'/>
++    <feature name='mtrr'/>
++    <feature name='nx'/>
++    <feature name='pae'/>
++    <feature name='pat'/>
++    <feature name='pcid'/>
++    <feature name='pclmuldq'/>
++    <feature name='pge'/>
++    <feature name='pku'/>
++    <feature name='pni'/>
++    <feature name='popcnt'/>
++    <feature name='pse'/>
++    <feature name='pse36'/>
++    <feature name='rdrand'/>
++    <feature name='rdseed'/>
++    <feature name='rdtscp'/>
++    <feature name='sep'/>
++    <feature name='smap'/>
++    <feature name='smep'/>
++    <feature name='spec-ctrl'/>
++    <feature name='ssbd'/>
++    <feature name='sse'/>
++    <feature name='sse2'/>
++    <feature name='sse4.1'/>
++    <feature name='sse4.2'/>
++    <feature name='ssse3'/>
++    <feature name='syscall'/>
++    <feature name='tsc'/>
++    <feature name='tsc-deadline'/>
++    <feature name='umip'/>
++    <feature name='vaes'/>
++    <feature name='vme'/>
++    <feature name='vpclmulqdq'/>
++    <feature name='wbnoinvd'/>
++    <feature name='x2apic'/>
++    <feature name='xgetbv1'/>
++    <feature name='xsave'/>
++    <feature name='xsavec'/>
++    <feature name='xsaveopt'/>
++  </model>
++</cpus>
+--- /dev/null
++++ b/src/cpu_map/x86_Icelake-Server-noTSX.xml
+@@ -0,0 +1,90 @@
++<cpus>
++  <model name='Icelake-Server-noTSX'>
++    <signature family='6' model='134'/> <!-- 080660 -->
++    <vendor name='Intel'/>
++    <feature name='3dnowprefetch'/>
++    <feature name='abm'/>
++    <feature name='adx'/>
++    <feature name='aes'/>
++    <feature name='apic'/>
++    <feature name='arat'/>
++    <feature name='avx'/>
++    <feature name='avx2'/>
++    <feature name='avx512-vpopcntdq'/>
++    <feature name='avx512bitalg'/>
++    <feature name='avx512bw'/>
++    <feature name='avx512cd'/>
++    <feature name='avx512dq'/>
++    <feature name='avx512f'/>
++    <feature name='avx512vbmi'/>
++    <feature name='avx512vbmi2'/>
++    <feature name='avx512vl'/>
++    <feature name='avx512vnni'/>
++    <feature name='bmi1'/>
++    <feature name='bmi2'/>
++    <feature name='clflush'/>
++    <feature name='clflushopt'/>
++    <feature name='clwb'/>
++    <feature name='cmov'/>
++    <feature name='cx16'/>
++    <feature name='cx8'/>
++    <feature name='de'/>
++    <feature name='erms'/>
++    <feature name='f16c'/>
++    <feature name='fma'/>
++    <feature name='fpu'/>
++    <feature name='fsgsbase'/>
++    <feature name='fxsr'/>
++    <feature name='gfni'/>
++    <feature name='intel-pt'/>
++    <feature name='invpcid'/>
++    <feature name='la57'/>
++    <feature name='lahf_lm'/>
++    <feature name='lm'/>
++    <feature name='mca'/>
++    <feature name='mce'/>
++    <feature name='mmx'/>
++    <feature name='movbe'/>
++    <feature name='mpx'/>
++    <feature name='msr'/>
++    <feature name='mtrr'/>
++    <feature name='nx'/>
++    <feature name='pae'/>
++    <feature name='pat'/>
++    <feature name='pcid'/>
++    <feature name='pclmuldq'/>
++    <feature name='pdpe1gb'/>
++    <feature name='pge'/>
++    <feature name='pku'/>
++    <feature name='pni'/>
++    <feature name='popcnt'/>
++    <feature name='pse'/>
++    <feature name='pse36'/>
++    <feature name='rdrand'/>
++    <feature name='rdseed'/>
++    <feature name='rdtscp'/>
++    <feature name='sep'/>
++    <feature name='smap'/>
++    <feature name='smep'/>
++    <feature name='spec-ctrl'/>
++    <feature name='ssbd'/>
++    <feature name='sse'/>
++    <feature name='sse2'/>
++    <feature name='sse4.1'/>
++    <feature name='sse4.2'/>
++    <feature name='ssse3'/>
++    <feature name='syscall'/>
++    <feature name='tsc'/>
++    <feature name='tsc-deadline'/>
++    <feature name='umip'/>
++    <feature name='vaes'/>
++    <feature name='vme'/>
++    <feature name='vpclmulqdq'/>
++    <feature name='wbnoinvd'/>
++    <feature name='x2apic'/>
++    <feature name='xgetbv1'/>
++    <feature name='xsave'/>
++    <feature name='xsavec'/>
++    <feature name='xsaveopt'/>
++  </model>
++</cpus>
+--- /dev/null
++++ b/src/cpu_map/x86_Skylake-Client-noTSX-IBRS.xml
+@@ -0,0 +1,73 @@
++<cpus>
++  <model name='Skylake-Client-noTSX-IBRS'>
++    <signature family='6' model='94'/> <!-- 0506e0 -->
++    <signature family='6' model='78'/> <!-- 0406e0 -->
++    <!-- These are Kaby Lake and Coffee Lake successors to Skylake,
++         but we don't have specific models for them. -->
++    <signature family='6' model='142'/> <!-- 0806e0 -->
++    <signature family='6' model='158'/> <!-- 0906e0 -->
++    <vendor name='Intel'/>
++    <feature name='3dnowprefetch'/>
++    <feature name='abm'/>
++    <feature name='adx'/>
++    <feature name='aes'/>
++    <feature name='apic'/>
++    <feature name='arat'/>
++    <feature name='avx'/>
++    <feature name='avx2'/>
++    <feature name='bmi1'/>
++    <feature name='bmi2'/>
++    <feature name='clflush'/>
++    <feature name='cmov'/>
++    <feature name='cx16'/>
++    <feature name='cx8'/>
++    <feature name='de'/>
++    <feature name='erms'/>
++    <feature name='f16c'/>
++    <feature name='fma'/>
++    <feature name='fpu'/>
++    <feature name='fsgsbase'/>
++    <feature name='fxsr'/>
++    <feature name='invpcid'/>
++    <feature name='lahf_lm'/>
++    <feature name='lm'/>
++    <feature name='mca'/>
++    <feature name='mce'/>
++    <feature name='mmx'/>
++    <feature name='movbe'/>
++    <feature name='mpx'/>
++    <feature name='msr'/>
++    <feature name='mtrr'/>
++    <feature name='nx'/>
++    <feature name='pae'/>
++    <feature name='pat'/>
++    <feature name='pcid'/>
++    <feature name='pclmuldq'/>
++    <feature name='pge'/>
++    <feature name='pni'/>
++    <feature name='popcnt'/>
++    <feature name='pse'/>
++    <feature name='pse36'/>
++    <feature name='rdrand'/>
++    <feature name='rdseed'/>
++    <feature name='rdtscp'/>
++    <feature name='sep'/>
++    <feature name='smap'/>
++    <feature name='smep'/>
++    <feature name='spec-ctrl'/>
++    <feature name='sse'/>
++    <feature name='sse2'/>
++    <feature name='sse4.1'/>
++    <feature name='sse4.2'/>
++    <feature name='ssse3'/>
++    <feature name='syscall'/>
++    <feature name='tsc'/>
++    <feature name='tsc-deadline'/>
++    <feature name='vme'/>
++    <feature name='x2apic'/>
++    <feature name='xgetbv1'/>
++    <feature name='xsave'/>
++    <feature name='xsavec'/>
++    <feature name='xsaveopt'/>
++  </model>
++</cpus>
+--- /dev/null
++++ b/src/cpu_map/x86_Skylake-Server-noTSX-IBRS.xml
+@@ -0,0 +1,75 @@
++<cpus>
++  <model name='Skylake-Server-noTSX-IBRS'>
++    <signature family='6' model='85'/> <!-- 050654 -->
++    <vendor name='Intel'/>
++    <feature name='3dnowprefetch'/>
++    <feature name='abm'/>
++    <feature name='adx'/>
++    <feature name='aes'/>
++    <feature name='apic'/>
++    <feature name='arat'/>
++    <feature name='avx'/>
++    <feature name='avx2'/>
++    <feature name='avx512bw'/>
++    <feature name='avx512cd'/>
++    <feature name='avx512dq'/>
++    <feature name='avx512f'/>
++    <feature name='avx512vl'/>
++    <feature name='bmi1'/>
++    <feature name='bmi2'/>
++    <feature name='clflush'/>
++    <feature name='clwb'/>
++    <feature name='cmov'/>
++    <feature name='cx16'/>
++    <feature name='cx8'/>
++    <feature name='de'/>
++    <feature name='erms'/>
++    <feature name='f16c'/>
++    <feature name='fma'/>
++    <feature name='fpu'/>
++    <feature name='fsgsbase'/>
++    <feature name='fxsr'/>
++    <feature name='invpcid'/>
++    <feature name='lahf_lm'/>
++    <feature name='lm'/>
++    <feature name='mca'/>
++    <feature name='mce'/>
++    <feature name='mmx'/>
++    <feature name='movbe'/>
++    <feature name='mpx'/>
++    <feature name='msr'/>
++    <feature name='mtrr'/>
++    <feature name='nx'/>
++    <feature name='pae'/>
++    <feature name='pat'/>
++    <feature name='pcid'/>
++    <feature name='pclmuldq'/>
++    <feature name='pdpe1gb'/>
++    <feature name='pge'/>
++    <feature name='pni'/>
++    <feature name='popcnt'/>
++    <feature name='pse'/>
++    <feature name='pse36'/>
++    <feature name='rdrand'/>
++    <feature name='rdseed'/>
++    <feature name='rdtscp'/>
++    <feature name='sep'/>
++    <feature name='smap'/>
++    <feature name='smep'/>
++    <feature name='spec-ctrl'/>
++    <feature name='sse'/>
++    <feature name='sse2'/>
++    <feature name='sse4.1'/>
++    <feature name='sse4.2'/>
++    <feature name='ssse3'/>
++    <feature name='syscall'/>
++    <feature name='tsc'/>
++    <feature name='tsc-deadline'/>
++    <feature name='vme'/>
++    <feature name='x2apic'/>
++    <feature name='xgetbv1'/>
++    <feature name='xsave'/>
++    <feature name='xsavec'/>
++    <feature name='xsaveopt'/>
++  </model>
++</cpus>
+--- a/tests/cputestdata/x86_64-cpuid-Core-i7-8550U-guest.xml
++++ b/tests/cputestdata/x86_64-cpuid-Core-i7-8550U-guest.xml
+@@ -1,5 +1,5 @@
+ <cpu mode='custom' match='exact'>
+-  <model fallback='forbid'>Skylake-Client-IBRS</model>
++  <model fallback='forbid'>Skylake-Client-noTSX-IBRS</model>
+   <vendor>Intel</vendor>
+   <feature policy='require' name='ds'/>
+   <feature policy='require' name='acpi'/>
+@@ -26,6 +26,4 @@
+   <feature policy='require' name='pdpe1gb'/>
+   <feature policy='require' name='invtsc'/>
+   <feature policy='require' name='skip-l1dfl-vmentry'/>
+-  <feature policy='disable' name='hle'/>
+-  <feature policy='disable' name='rtm'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Core-i7-8550U-host.xml
++++ b/tests/cputestdata/x86_64-cpuid-Core-i7-8550U-host.xml
+@@ -1,8 +1,7 @@
+ <cpu>
+   <arch>x86_64</arch>
+-  <model>Broadwell-noTSX-IBRS</model>
++  <model>Skylake-Client-noTSX-IBRS</model>
+   <vendor>Intel</vendor>
+-  <feature name='vme'/>
+   <feature name='ds'/>
+   <feature name='acpi'/>
+   <feature name='ss'/>
+@@ -18,22 +17,14 @@
+   <feature name='xtpr'/>
+   <feature name='pdcm'/>
+   <feature name='osxsave'/>
+-  <feature name='f16c'/>
+-  <feature name='rdrand'/>
+-  <feature name='arat'/>
+   <feature name='tsc_adjust'/>
+-  <feature name='mpx'/>
+   <feature name='clflushopt'/>
+   <feature name='intel-pt'/>
+   <feature name='md-clear'/>
+   <feature name='stibp'/>
+   <feature name='ssbd'/>
+-  <feature name='xsaveopt'/>
+-  <feature name='xsavec'/>
+-  <feature name='xgetbv1'/>
+   <feature name='xsaves'/>
+   <feature name='pdpe1gb'/>
+-  <feature name='abm'/>
+   <feature name='invtsc'/>
+   <feature name='skip-l1dfl-vmentry'/>
+ </cpu>
+--- a/tests/cputestdata/x86_64-cpuid-Core-i7-8550U-json.xml
++++ b/tests/cputestdata/x86_64-cpuid-Core-i7-8550U-json.xml
+@@ -1,5 +1,5 @@
+ <cpu mode='custom' match='exact'>
+-  <model fallback='forbid'>Skylake-Client-IBRS</model>
++  <model fallback='forbid'>Skylake-Client-noTSX-IBRS</model>
+   <vendor>Intel</vendor>
+   <feature policy='require' name='ss'/>
+   <feature policy='require' name='vmx'/>
+@@ -14,6 +14,4 @@
+   <feature policy='require' name='xsaves'/>
+   <feature policy='require' name='pdpe1gb'/>
+   <feature policy='require' name='skip-l1dfl-vmentry'/>
+-  <feature policy='disable' name='hle'/>
+-  <feature policy='disable' name='rtm'/>
+ </cpu>
+--- a/tests/domaincapsdata/qemu_4.2.0-q35.x86_64.xml
++++ b/tests/domaincapsdata/qemu_4.2.0-q35.x86_64.xml
+@@ -63,8 +63,10 @@
+       <model usable='no'>athlon</model>
+       <model usable='yes'>Westmere-IBRS</model>
+       <model usable='yes'>Westmere</model>
++      <model usable='no'>Skylake-Server-noTSX-IBRS</model>
+       <model usable='no'>Skylake-Server-IBRS</model>
+       <model usable='no'>Skylake-Server</model>
++      <model usable='yes'>Skylake-Client-noTSX-IBRS</model>
+       <model usable='yes'>Skylake-Client-IBRS</model>
+       <model usable='yes'>Skylake-Client</model>
+       <model usable='yes'>SandyBridge-IBRS</model>
+@@ -79,7 +81,9 @@
+       <model usable='yes'>Nehalem</model>
+       <model usable='yes'>IvyBridge-IBRS</model>
+       <model usable='yes'>IvyBridge</model>
++      <model usable='no'>Icelake-Server-noTSX</model>
+       <model usable='no'>Icelake-Server</model>
++      <model usable='no'>Icelake-Client-noTSX</model>
+       <model usable='no'>Icelake-Client</model>
+       <model usable='yes'>Haswell-noTSX-IBRS</model>
+       <model usable='yes'>Haswell-noTSX</model>
+@@ -89,6 +93,7 @@
+       <model usable='no'>EPYC</model>
+       <model usable='no'>Dhyana</model>
+       <model usable='yes'>Conroe</model>
++      <model usable='no'>Cascadelake-Server-noTSX</model>
+       <model usable='no'>Cascadelake-Server</model>
+       <model usable='yes'>Broadwell-noTSX-IBRS</model>
+       <model usable='yes'>Broadwell-noTSX</model>
+--- a/tests/domaincapsdata/qemu_4.2.0-tcg.x86_64.xml
++++ b/tests/domaincapsdata/qemu_4.2.0-tcg.x86_64.xml
+@@ -73,8 +73,10 @@
+       <model usable='yes'>athlon</model>
+       <model usable='no'>Westmere-IBRS</model>
+       <model usable='no'>Westmere</model>
++      <model usable='no'>Skylake-Server-noTSX-IBRS</model>
+       <model usable='no'>Skylake-Server-IBRS</model>
+       <model usable='no'>Skylake-Server</model>
++      <model usable='no'>Skylake-Client-noTSX-IBRS</model>
+       <model usable='no'>Skylake-Client-IBRS</model>
+       <model usable='no'>Skylake-Client</model>
+       <model usable='no'>SandyBridge-IBRS</model>
+@@ -89,7 +91,9 @@
+       <model usable='no'>Nehalem</model>
+       <model usable='no'>IvyBridge-IBRS</model>
+       <model usable='no'>IvyBridge</model>
++      <model usable='no'>Icelake-Server-noTSX</model>
+       <model usable='no'>Icelake-Server</model>
++      <model usable='no'>Icelake-Client-noTSX</model>
+       <model usable='no'>Icelake-Client</model>
+       <model usable='no'>Haswell-noTSX-IBRS</model>
+       <model usable='no'>Haswell-noTSX</model>
+@@ -99,6 +103,7 @@
+       <model usable='no'>EPYC</model>
+       <model usable='no'>Dhyana</model>
+       <model usable='yes'>Conroe</model>
++      <model usable='no'>Cascadelake-Server-noTSX</model>
+       <model usable='no'>Cascadelake-Server</model>
+       <model usable='no'>Broadwell-noTSX-IBRS</model>
+       <model usable='no'>Broadwell-noTSX</model>
+--- a/tests/domaincapsdata/qemu_4.2.0.x86_64.xml
++++ b/tests/domaincapsdata/qemu_4.2.0.x86_64.xml
+@@ -62,8 +62,10 @@
+       <model usable='no'>athlon</model>
+       <model usable='yes'>Westmere-IBRS</model>
+       <model usable='yes'>Westmere</model>
++      <model usable='no'>Skylake-Server-noTSX-IBRS</model>
+       <model usable='no'>Skylake-Server-IBRS</model>
+       <model usable='no'>Skylake-Server</model>
++      <model usable='yes'>Skylake-Client-noTSX-IBRS</model>
+       <model usable='yes'>Skylake-Client-IBRS</model>
+       <model usable='yes'>Skylake-Client</model>
+       <model usable='yes'>SandyBridge-IBRS</model>
+@@ -78,7 +80,9 @@
+       <model usable='yes'>Nehalem</model>
+       <model usable='yes'>IvyBridge-IBRS</model>
+       <model usable='yes'>IvyBridge</model>
++      <model usable='no'>Icelake-Server-noTSX</model>
+       <model usable='no'>Icelake-Server</model>
++      <model usable='no'>Icelake-Client-noTSX</model>
+       <model usable='no'>Icelake-Client</model>
+       <model usable='yes'>Haswell-noTSX-IBRS</model>
+       <model usable='yes'>Haswell-noTSX</model>
+@@ -88,6 +92,7 @@
+       <model usable='no'>EPYC</model>
+       <model usable='no'>Dhyana</model>
+       <model usable='yes'>Conroe</model>
++      <model usable='no'>Cascadelake-Server-noTSX</model>
+       <model usable='no'>Cascadelake-Server</model>
+       <model usable='yes'>Broadwell-noTSX-IBRS</model>
+       <model usable='yes'>Broadwell-noTSX</model>

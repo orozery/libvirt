@@ -1,0 +1,49 @@
+From 2c3ffa37284b9fa3d1e6c369fa2bb71c6f6dd92a Mon Sep 17 00:00:00 2001
+From: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Date: Mon, 15 Jun 2020 10:28:11 +0200
+Subject: [PATCH] docs: Update AMD launch secure description
+
+Update document with changes in qemu capability caching and the added
+secure guest support checking for AMD SEV in virt-host-validate.
+
+Signed-off-by: Boris Fiuczynski <fiuczy@linux.ibm.com>
+Reviewed-by: Erik Skultety <eskultet@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=2c3ffa3728
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1874647
+Last-Update: 2020-08-31
+
+---
+ docs/kbase/launch_security_sev.rst | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/docs/kbase/launch_security_sev.rst b/docs/kbase/launch_security_sev.rst
+index 65f258587d..19b978481a 100644
+--- a/docs/kbase/launch_security_sev.rst
++++ b/docs/kbase/launch_security_sev.rst
+@@ -30,8 +30,11 @@ Enabling SEV on the host
+ ========================
+ 
+ Before VMs can make use of the SEV feature you need to make sure your
+-AMD CPU does support SEV. You can check whether SEV is among the CPU
+-flags with:
++AMD CPU does support SEV. You can run ``libvirt-host-validate``
++(libvirt >= 6.5.0) to check if your host supports secure guests or you
++can follow the manual checks below.
++
++You can manually check whether SEV is among the CPU flags with:
+ 
+ ::
+ 
+@@ -109,7 +112,7 @@ following:
+      </features>
+    </domainCapabilities>
+ 
+-Note that if libvirt was already installed and libvirtd running before
++Note that if libvirt (<6.5.0) was already installed and libvirtd running before
+ enabling SEV in the kernel followed by the host reboot you need to force
+ libvirtd to re-probe both the host and QEMU capabilities. First stop
+ libvirtd:
+-- 
+2.28.0
+

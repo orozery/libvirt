@@ -1,0 +1,71 @@
+From 24d7d85208f812a45686b32a0561cc9c5c9a49c9 Mon Sep 17 00:00:00 2001
+From: Michal Privoznik <mprivozn@redhat.com>
+Date: Fri, 21 Aug 2020 14:43:21 +0200
+Subject: [PATCH] virnuma: Don't work around numa_node_to_cpus() for
+ non-existent nodes
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+In a very distant past, we came around machines that has not
+continuous node IDs. This made us error out when constructing
+capabilities XML. We resolved it by utilizing strange behaviour
+of numa_node_to_cpus() in which it returned a mask with all bits
+set for a non-existent node. However, this is not the only case
+when it returns all ones mask - if the node exists and has enough
+CPUs to fill the mask up (e.g. 128 CPUs).
+
+The fix consists of using nodemask_isset(&numa_all_nodes, ..)
+prior to calling numa_node_to_cpus() to determine if the node
+exists.
+
+Fixes: 628c93574758abb59e71160042524d321a33543f
+Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1860231
+Signed-off-by: Michal Privoznik <mprivozn@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+
+Origin: upstream, https://libvirt.org/git/?p=libvirt.git;a=commit;h=24d7d85208
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1915811
+---
+ src/util/virnuma.c | 18 +++++-------------
+ 1 file changed, 5 insertions(+), 13 deletions(-)
+
+--- a/src/util/virnuma.c
++++ b/src/util/virnuma.c
+@@ -255,31 +255,23 @@
+     int mask_n_bytes = max_n_cpus / 8;
+     size_t i;
+     g_autofree unsigned long *mask = NULL;
+-    g_autofree unsigned long *allonesmask = NULL;
+     g_autoptr(virBitmap) cpumap = NULL;
+ 
+     *cpus = NULL;
+ 
+-    if (VIR_ALLOC_N(mask, mask_n_bytes / sizeof(*mask)) < 0)
+-        return -1;
++    if (!nodemask_isset(&numa_all_nodes, node)) {
++        VIR_DEBUG("NUMA topology for cell %d is not available, ignoring", node);
++        return -2;
++    }
+ 
+-    if (VIR_ALLOC_N(allonesmask, mask_n_bytes / sizeof(*mask)) < 0)
++    if (VIR_ALLOC_N(mask, mask_n_bytes / sizeof(*mask)) < 0)
+         return -1;
+ 
+-    memset(allonesmask, 0xff, mask_n_bytes);
+-
+-    /* The first time this returns -1, ENOENT if node doesn't exist... */
+     if (numa_node_to_cpus(node, mask, mask_n_bytes) < 0) {
+         VIR_WARN("NUMA topology for cell %d is not available, ignoring", node);
+         return -2;
+     }
+ 
+-    /* second, third... times it returns an all-1's mask */
+-    if (memcmp(mask, allonesmask, mask_n_bytes) == 0) {
+-        VIR_DEBUG("NUMA topology for cell %d is invalid, ignoring", node);
+-        return -2;
+-    }
+-
+     if (!(cpumap = virBitmapNew(max_n_cpus)))
+         return -1;
+ 

@@ -1,0 +1,39 @@
+From d3de79dbfc20dc4dfc19154b16079861c542b71e Mon Sep 17 00:00:00 2001
+From: Jiri Denemark <jdenemar@redhat.com>
+Date: Tue, 2 Mar 2021 10:32:42 +0100
+Subject: [PATCH] cpu_map: Install x86_EPYC-Milan.xml
+
+Signed-off-by: Jiri Denemark <jdenemar@redhat.com>
+Reviewed-by: Pavel Hrdina <phrdina@redhat.com>
+
+Backport-Note: Focal is pre-meson so the patch needed to be adapted to
+    fit the Make based build, the same that we've done in patch
+    ubuntu/lp-1887490-cpu_map-Defined-and-enable-EPYC-Rome-model.patch
+Origin: backport, https://libvirt.org/git/?p=libvirt.git;a=commit;h=d3de79db
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1921880
+Last-Update: 2021-04-07
+
+---
+ src/cpu_map/meson.build | 1 +
+ 1 file changed, 1 insertion(+)
+
+--- a/src/Makefile.in
++++ b/src/Makefile.in
+@@ -5561,6 +5561,7 @@ cpumap_DATA = \
+ 	cpu_map/x86_Dhyana.xml \
+ 	cpu_map/x86_EPYC.xml \
+ 	cpu_map/x86_EPYC-IBPB.xml \
++	cpu_map/x86_EPYC-Milan.xml \
+ 	cpu_map/x86_EPYC-Rome.xml \
+ 	cpu_map/x86_Haswell.xml \
+ 	cpu_map/x86_Haswell-IBRS.xml \
+--- a/src/cpu_map/Makefile.inc.am
++++ b/src/cpu_map/Makefile.inc.am
+@@ -29,6 +29,7 @@ cpumap_DATA = \
+ 	cpu_map/x86_Dhyana.xml \
+ 	cpu_map/x86_EPYC.xml \
+ 	cpu_map/x86_EPYC-IBPB.xml \
++	cpu_map/x86_EPYC-Milan.xml \
+ 	cpu_map/x86_EPYC-Rome.xml \
+ 	cpu_map/x86_Haswell.xml \
+ 	cpu_map/x86_Haswell-IBRS.xml \
