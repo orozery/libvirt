@@ -1,0 +1,450 @@
+From b39b34c43749c66293eaab1f2a43ccbd5f973057 Mon Sep 17 00:00:00 2001
+From: Or Ozeri <oro@il.ibm.com>
+Date: Sun, 6 Mar 2022 11:02:38 +0200
+Subject: [PATCH] librbd encryption
+
+---
+ docs/formatstorageencryption.html.in | 29 +++++++++++-
+ docs/schemas/domainbackup.rng        |  7 +++
+ docs/schemas/storagecommon.rng       |  9 ++++
+ src/qemu/qemu_block.c                | 42 +++++++++++++++++
+ src/qemu/qemu_capabilities.c         |  2 +
+ src/qemu/qemu_capabilities.h         |  1 +
+ src/qemu/qemu_domain.c               | 67 +++++++++++++++++++++++++++-
+ src/util/virstorageencryption.c      | 34 +++++++++++++-
+ src/util/virstorageencryption.h      | 11 +++++
+ 9 files changed, 198 insertions(+), 4 deletions(-)
+
+diff --git a/docs/formatstorageencryption.html.in b/docs/formatstorageencryption.html.in
+index ea80a87..9f64157 100644
+--- a/docs/formatstorageencryption.html.in
++++ b/docs/formatstorageencryption.html.in
+@@ -18,11 +18,26 @@
+       is <code>encryption</code>, with a mandatory
+       attribute <code>format</code>.  Currently defined values
+       of <code>format</code> are <code>default</code>, <code>qcow</code>,
+-      and <code>luks</code>.
++      <code>luks</code>, and <code>luks2</code>.
+       Each value of <code>format</code> implies some expectations about the
+       content of the <code>encryption</code> tag.  Other format values may be
+       defined in the future.
+     </p>
++    <p>
++      The <code>encryption</code> tag supports an optional <code>engine</code>
++      tag, which allows selecting which component actually handles
++      the encryption. Currently defined values of <code>engine</code> are
++      <code>qemu</code> and <code>librbd</code>.
++      Both <code>qemu</code> and <code>librbd</code> require using the qemu
++      driver.
++      The <code>librbd</code> engine requires qemu version >= 6.1.0,
++      and is only applicable for RBD network disks.
++      If the engine tag is not specified, the <code>qemu</code> engine will be
++      used by default (assuming the qemu driver is used).
++      Note that <code>librbd</code> engine is currently only supported by the
++      qemu VM driver, and is not supported by the storage driver. Furthermore,
++      the storage driver currently ignores the <code>engine</code> tag.
++    </p>
+     <p>
+       The <code>encryption</code> tag can currently contain a sequence of
+       <code>secret</code> tags, each with mandatory attributes <code>type</code>
+@@ -110,6 +125,18 @@
+       </dd>
+     </dl>
+ 
++    <h3><a id="StorageEncryptionLuks2">"luks2" format</a></h3>
++    <p>
++      The <code>luks2</code> format is currently supported only by the
++      <code>librbd</code> engine, and can only be applied to RBD network disks.
++      Since the <code>librbd</code> engine is currently not supported by the
++      storage driver, you cannot use it to control such disks. However,
++      pre-formatted RBD luks2 disks can be loaded to a qemu VM using the qemu
++      VM driver.
++      A single
++      <code>&lt;secret type='passphrase'...&gt;</code> element is expected.
++    </p>
++
+ 
+     <h2><a id="example">Examples</a></h2>
+ 
+diff --git a/docs/schemas/domainbackup.rng b/docs/schemas/domainbackup.rng
+index c1e4d80..16ede98 100644
+--- a/docs/schemas/domainbackup.rng
++++ b/docs/schemas/domainbackup.rng
+@@ -9,6 +9,13 @@
+ 
+   <define name='domainbackup'>
+     <element name='domainbackup'>
++      <optional>
++        <attribute name="engine">
++          <choice>
++            <value>qemu</value>
++          </choice>
++        </attribute>
++      </optional>
+       <interleave>
+         <optional>
+           <element name='incremental'>
+diff --git a/docs/schemas/storagecommon.rng b/docs/schemas/storagecommon.rng
+index 5f43493..6f4b3d1 100644
+--- a/docs/schemas/storagecommon.rng
++++ b/docs/schemas/storagecommon.rng
+@@ -21,8 +21,17 @@
+           <value>default</value>
+           <value>qcow</value>
+           <value>luks</value>
++           <value>luks2</value>
+         </choice>
+       </attribute>
++      <optional>
++        <attribute name="engine">
++          <choice>
++            <value>qemu</value>
++            <value>librbd</value>
++          </choice>
++        </attribute>
++      </optional>
+       <interleave>
+         <ref name='secret'/>
+         <optional>
+diff --git a/src/qemu/qemu_block.c b/src/qemu/qemu_block.c
+index c263782..80cdfb5 100644
+--- a/src/qemu/qemu_block.c
++++ b/src/qemu/qemu_block.c
+@@ -824,6 +824,8 @@ qemuBlockStorageSourceGetRBDProps(virStorageSourcePtr src,
+     qemuDomainStorageSourcePrivatePtr srcPriv = QEMU_DOMAIN_STORAGE_SOURCE_PRIVATE(src);
+     g_autoptr(virJSONValue) servers = NULL;
+     virJSONValuePtr ret = NULL;
++    g_autoptr(virJSONValue) encrypt = NULL;
++    const char *encformat;
+     const char *username = NULL;
+     g_autoptr(virJSONValue) authmodes = NULL;
+     g_autoptr(virJSONValue) mode = NULL;
+@@ -853,12 +855,44 @@ qemuBlockStorageSourceGetRBDProps(virStorageSourcePtr src,
+         mode = NULL;
+     }
+ 
++    if (src->encryption &&
++        src->encryption->engine == VIR_STORAGE_ENCRYPTION_ENGINE_LIBRBD) {
++        switch ((virStorageEncryptionFormatType) src->encryption->format) {
++            case VIR_STORAGE_ENCRYPTION_FORMAT_LUKS:
++                encformat = "luks";
++                break;
++
++            case VIR_STORAGE_ENCRYPTION_FORMAT_LUKS2:
++                encformat = "luks2";
++                break;
++
++            case VIR_STORAGE_ENCRYPTION_FORMAT_QCOW:
++                virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                               _("librbd encryption engine only supports luks/luks2 formats"));
++                return NULL;
++
++            case VIR_STORAGE_ENCRYPTION_FORMAT_DEFAULT:
++            case VIR_STORAGE_ENCRYPTION_FORMAT_LAST:
++            default:
++                virReportEnumRangeError(virStorageEncryptionFormatType,
++                                        src->encryption->format);
++                return NULL;
++        }
++
++        if (virJSONValueObjectCreate(&encrypt,
++                                     "s:format", encformat,
++                                     "s:key-secret", srcPriv->encinfo->s.aes.alias,
++                                     NULL) < 0)
++            return NULL;
++    }
++
+     if (virJSONValueObjectCreate(&ret,
+                                  "s:pool", src->volume,
+                                  "s:image", src->path,
+                                  "S:snapshot", src->snapshot,
+                                  "S:conf", src->configFile,
+                                  "A:server", &servers,
++                                 "A:encrypt", &encrypt,
+                                  "S:user", username,
+                                  "A:auth-client-required", &authmodes,
+                                  "S:key-secret", keysecret,
+@@ -1226,6 +1260,7 @@ qemuBlockStorageSourceGetCryptoProps(virStorageSourcePtr src,
+      * VIR_DOMAIN_SECRET_INFO_TYPE_AES works here. The correct type needs to be
+      * instantiated elsewhere. */
+     if (!src->encryption ||
++        (src->encryption->engine != VIR_STORAGE_ENCRYPTION_ENGINE_QEMU && src->encryption->engine != VIR_STORAGE_ENCRYPTION_ENGINE_DEFAULT) ||
+         !srcpriv ||
+         !srcpriv->encinfo ||
+         srcpriv->encinfo->type != VIR_DOMAIN_SECRET_INFO_TYPE_AES)
+@@ -1240,6 +1275,11 @@ qemuBlockStorageSourceGetCryptoProps(virStorageSourcePtr src,
+         encformat = "luks";
+         break;
+ 
++    case VIR_STORAGE_ENCRYPTION_FORMAT_LUKS2:
++        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                       _("luks2 is currently not supported by the qemu encryption engine"));
++        return -1;
++
+     case VIR_STORAGE_ENCRYPTION_FORMAT_DEFAULT:
+     case VIR_STORAGE_ENCRYPTION_FORMAT_LAST:
+     default:
+@@ -1350,6 +1390,7 @@ qemuBlockStorageSourceGetBlockdevFormatProps(virStorageSourcePtr src)
+          * put a raw layer on top */
+     case VIR_STORAGE_FILE_RAW:
+         if (src->encryption &&
++            (src->encryption->engine == VIR_STORAGE_ENCRYPTION_ENGINE_QEMU || src->encryption->engine == VIR_STORAGE_ENCRYPTION_ENGINE_DEFAULT) &&
+             src->encryption->format == VIR_STORAGE_ENCRYPTION_FORMAT_LUKS) {
+             if (qemuBlockStorageSourceGetFormatLUKSProps(src, props) < 0)
+                 return NULL;
+@@ -2240,6 +2281,7 @@ qemuBlockStorageSourceCreateGetFormatProps(virStorageSourcePtr src,
+     switch ((virStorageFileFormat) src->format) {
+     case VIR_STORAGE_FILE_RAW:
+         if (!src->encryption ||
++            (src->encryption->engine != VIR_STORAGE_ENCRYPTION_ENGINE_QEMU && src->encryption->engine != VIR_STORAGE_ENCRYPTION_ENGINE_DEFAULT) ||
+             src->encryption->format != VIR_STORAGE_ENCRYPTION_FORMAT_LUKS)
+             return 0;
+ 
+diff --git a/src/qemu/qemu_capabilities.c b/src/qemu/qemu_capabilities.c
+index fec14dc..5bb6f20 100644
+--- a/src/qemu/qemu_capabilities.c
++++ b/src/qemu/qemu_capabilities.c
+@@ -554,6 +554,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
+               "blockdev-file-dynamic-auto-read-only",
+               "savevm-monitor-nodes",
+               "drive-nvme",
++              "rbd-encryption",
+     );
+ 
+ 
+@@ -1427,6 +1428,7 @@ static struct virQEMUCapsStringFlags virQEMUCapsQMPSchemaQueries[] = {
+     { "blockdev-add/arg-type/+file/$dynamic-auto-read-only", QEMU_CAPS_BLOCK_FILE_AUTO_READONLY_DYNAMIC },
+     { "human-monitor-command/$savevm-monitor-nodes", QEMU_CAPS_SAVEVM_MONITOR_NODES },
+     { "blockdev-add/arg-type/+nvme", QEMU_CAPS_DRIVE_NVME },
++    { "blockdev-add/arg-type/+rbd/encrypt", QEMU_CAPS_RBD_ENCRYPTION },
+ };
+ 
+ typedef struct _virQEMUCapsObjectTypeProps virQEMUCapsObjectTypeProps;
+diff --git a/src/qemu/qemu_capabilities.h b/src/qemu/qemu_capabilities.h
+index e42913c..ccb610a 100644
+--- a/src/qemu/qemu_capabilities.h
++++ b/src/qemu/qemu_capabilities.h
+@@ -534,6 +534,7 @@ typedef enum { /* virQEMUCapsFlags grouping marker for syntax-check */
+     QEMU_CAPS_BLOCK_FILE_AUTO_READONLY_DYNAMIC, /* the auto-read-only property of block backends for files is dynamic */
+     QEMU_CAPS_SAVEVM_MONITOR_NODES, /* 'savevm' handles monitor-owned nodes properly */
+     QEMU_CAPS_DRIVE_NVME, /* -drive file.driver=nvme */
++    QEMU_CAPS_RBD_ENCRYPTION, /* Ceph RBD encryption support */
+ 
+     QEMU_CAPS_LAST /* this must always be the last item */
+ } virQEMUCapsFlags;
+diff --git a/src/qemu/qemu_domain.c b/src/qemu/qemu_domain.c
+index e209a31..d11a118 100644
+--- a/src/qemu/qemu_domain.c
++++ b/src/qemu/qemu_domain.c
+@@ -1755,7 +1755,8 @@ bool
+ qemuDomainDiskHasEncryptionSecret(virStorageSourcePtr src)
+ {
+     if (!virStorageSourceIsEmpty(src) && src->encryption &&
+-        src->encryption->format == VIR_STORAGE_ENCRYPTION_FORMAT_LUKS &&
++        (src->encryption->format == VIR_STORAGE_ENCRYPTION_FORMAT_LUKS ||
++         src->encryption->format == VIR_STORAGE_ENCRYPTION_FORMAT_LUKS2) &&
+         src->encryption->nsecrets > 0)
+         return true;
+ 
+@@ -6862,6 +6863,62 @@ qemuDomainValidateStorageSource(virStorageSourcePtr src,
+         return -1;
+     }
+ 
++    if (src->encryption) {
++        switch (src->encryption->engine) {
++            case VIR_STORAGE_ENCRYPTION_ENGINE_DEFAULT:
++            case VIR_STORAGE_ENCRYPTION_ENGINE_QEMU:
++                switch ((virStorageEncryptionFormatType) src->encryption->format) {
++                    case VIR_STORAGE_ENCRYPTION_FORMAT_LUKS:
++                    case VIR_STORAGE_ENCRYPTION_FORMAT_QCOW:
++                        break;
++
++                    case VIR_STORAGE_ENCRYPTION_FORMAT_LUKS2:
++                        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                                       _("luks2 is currently not supported by the qemu encryption engine"));
++                        return -1;
++
++                    case VIR_STORAGE_ENCRYPTION_FORMAT_DEFAULT:
++                    case VIR_STORAGE_ENCRYPTION_FORMAT_LAST:
++                    default:
++                        virReportEnumRangeError(virStorageEncryptionFormatType,
++                                                src->encryption->format);
++                        return -1;
++                }
++
++                break;
++            case VIR_STORAGE_ENCRYPTION_ENGINE_LIBRBD:
++                if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_RBD_ENCRYPTION)) {
++                    virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                                   _("librbd encryption is not supported by this QEMU binary"));
++                    return -1;
++                }
++
++                switch ((virStorageEncryptionFormatType) src->encryption->format) {
++                    case VIR_STORAGE_ENCRYPTION_FORMAT_LUKS:
++                    case VIR_STORAGE_ENCRYPTION_FORMAT_LUKS2:
++                        break;
++
++                    case VIR_STORAGE_ENCRYPTION_FORMAT_QCOW:
++                        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
++                                       _("librbd encryption engine only supports luks/luks2 formats"));
++                        return -1;
++
++                    case VIR_STORAGE_ENCRYPTION_FORMAT_DEFAULT:
++                    case VIR_STORAGE_ENCRYPTION_FORMAT_LAST:
++                    default:
++                        virReportEnumRangeError(virStorageEncryptionFormatType,
++                                                src->encryption->format);
++                        return -1;
++                }
++
++                break;
++            case VIR_STORAGE_ENCRYPTION_ENGINE_LAST:
++                virReportEnumRangeError(virStorageEncryptionEngine,
++                                        src->encryption->engine);
++                return -1;
++        }
++    }
++
+     return 0;
+ }
+ 
+@@ -8943,6 +9000,8 @@ qemuDomainDeviceDiskDefPostParse(virDomainDiskDefPtr disk,
+                                  virQEMUCapsPtr qemuCaps,
+                                  unsigned int parseFlags)
+ {
++    virStorageSource *n;
++
+     /* set default disk types and drivers */
+     if (!virDomainDiskGetDriver(disk) &&
+         virDomainDiskSetDriver(disk, "qemu") < 0)
+@@ -8958,6 +9017,12 @@ qemuDomainDeviceDiskDefPostParse(virDomainDiskDefPtr disk,
+         disk->mirror->format == VIR_STORAGE_FILE_NONE)
+         disk->mirror->format = VIR_STORAGE_FILE_RAW;
+ 
++    /* default disk encryption engine */
++    for (n = disk->src; virStorageSourceIsBacking(n); n = n->backingStore) {
++        if (n->encryption && n->encryption->engine == VIR_STORAGE_ENCRYPTION_ENGINE_DEFAULT)
++            n->encryption->engine = VIR_STORAGE_ENCRYPTION_ENGINE_QEMU;
++    }
++
+     if (qemuDomainDeviceDiskDefPostParseRestoreSecAlias(disk, qemuCaps,
+                                                         parseFlags) < 0)
+         return -1;
+diff --git a/src/util/virstorageencryption.c b/src/util/virstorageencryption.c
+index 74836d4..fef6751 100644
+--- a/src/util/virstorageencryption.c
++++ b/src/util/virstorageencryption.c
+@@ -44,7 +44,12 @@ VIR_ENUM_IMPL(virStorageEncryptionSecret,
+ 
+ VIR_ENUM_IMPL(virStorageEncryptionFormat,
+               VIR_STORAGE_ENCRYPTION_FORMAT_LAST,
+-              "default", "qcow", "luks",
++              "default", "qcow", "luks", "luks2",
++);
++
++VIR_ENUM_IMPL(virStorageEncryptionEngine,
++              VIR_STORAGE_ENCRYPTION_ENGINE_LAST,
++              "default", "qemu", "librbd",
+ );
+ 
+ static void
+@@ -125,6 +130,7 @@ virStorageEncryptionCopy(const virStorageEncryption *src)
+ 
+     ret->nsecrets = src->nsecrets;
+     ret->format = src->format;
++    ret->engine = src->engine;
+ 
+     for (i = 0; i < src->nsecrets; i++) {
+         if (!(ret->secrets[i] = virStorageEncryptionSecretCopy(src->secrets[i])))
+@@ -251,6 +257,7 @@ virStorageEncryptionParseNode(xmlNodePtr node,
+     virStorageEncryptionPtr encdef = NULL;
+     virStorageEncryptionPtr ret = NULL;
+     char *format_str = NULL;
++    g_autofree char *engine_str = NULL;
+     int n;
+     size_t i;
+ 
+@@ -273,6 +280,17 @@ virStorageEncryptionParseNode(xmlNodePtr node,
+         goto cleanup;
+     }
+ 
++    if ((engine_str = virXMLPropString(node, "engine"))) {
++        if ((encdef->engine =
++                virStorageEncryptionEngineTypeFromString(engine_str)) <= 0) {
++            virReportError(VIR_ERR_XML_ERROR, _("unknown encryption engine %s"),
++                           engine_str);
++            goto cleanup;
++        }
++    } else {
++        encdef->engine = VIR_STORAGE_ENCRYPTION_ENGINE_QEMU;
++    }
++
+     if ((n = virXPathNodeSet("./secret", ctxt, &nodes)) < 0)
+         goto cleanup;
+ 
+@@ -364,6 +382,7 @@ int
+ virStorageEncryptionFormat(virBufferPtr buf,
+                            virStorageEncryptionPtr enc)
+ {
++    const char *engine;
+     const char *format;
+     size_t i;
+ 
+@@ -372,7 +391,18 @@ virStorageEncryptionFormat(virBufferPtr buf,
+                        "%s", _("unexpected encryption format"));
+         return -1;
+     }
+-    virBufferAsprintf(buf, "<encryption format='%s'>\n", format);
++    if (enc->engine == VIR_STORAGE_ENCRYPTION_ENGINE_DEFAULT || enc->engine == VIR_STORAGE_ENCRYPTION_ENGINE_QEMU) {
++        virBufferAsprintf(buf, "<encryption format='%s'>\n", format);
++    } else {
++        if (!(engine = virStorageEncryptionEngineTypeToString(enc->engine))) {
++            virReportError(VIR_ERR_INTERNAL_ERROR,
++                           "%s", _("unexpected encryption engine"));
++            return -1;
++        }
++        virBufferAsprintf(buf, "<encryption format='%s' engine='%s'>\n",
++                          format, engine);
++    }
++
+     virBufferAdjustIndent(buf, 2);
+ 
+     for (i = 0; i < enc->nsecrets; i++) {
+diff --git a/src/util/virstorageencryption.h b/src/util/virstorageencryption.h
+index 3e5485d..81af416 100644
+--- a/src/util/virstorageencryption.h
++++ b/src/util/virstorageencryption.h
+@@ -54,11 +54,21 @@ struct _virStorageEncryptionInfoDef {
+     char *ivgen_hash;
+ };
+ 
++typedef enum {
++    VIR_STORAGE_ENCRYPTION_ENGINE_DEFAULT = 0,
++    VIR_STORAGE_ENCRYPTION_ENGINE_QEMU,
++    VIR_STORAGE_ENCRYPTION_ENGINE_LIBRBD,
++
++    VIR_STORAGE_ENCRYPTION_ENGINE_LAST,
++} virStorageEncryptionEngine;
++VIR_ENUM_DECL(virStorageEncryptionEngine);
++
+ typedef enum {
+     /* "default" is only valid for volume creation */
+     VIR_STORAGE_ENCRYPTION_FORMAT_DEFAULT = 0,
+     VIR_STORAGE_ENCRYPTION_FORMAT_QCOW, /* Both qcow and qcow2 */
+     VIR_STORAGE_ENCRYPTION_FORMAT_LUKS,
++    VIR_STORAGE_ENCRYPTION_FORMAT_LUKS2,
+ 
+     VIR_STORAGE_ENCRYPTION_FORMAT_LAST,
+ } virStorageEncryptionFormatType;
+@@ -67,6 +77,7 @@ VIR_ENUM_DECL(virStorageEncryptionFormat);
+ typedef struct _virStorageEncryption virStorageEncryption;
+ typedef virStorageEncryption *virStorageEncryptionPtr;
+ struct _virStorageEncryption {
++    virStorageEncryptionEngine engine;
+     int format; /* virStorageEncryptionFormatType */
+     int payload_offset;
+ 
+-- 
+2.33.0.windows.2
+

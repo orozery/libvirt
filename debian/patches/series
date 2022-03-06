@@ -212,3 +212,4 @@ ibm/admin-Introduce-virAdmServerUpdateTlsFiles.patch
 ibm/virt-admin-Introduce-command-srv-update-tls.patch
 ibm/docs-update-virt-admin.rst-for-server-update-tls.patch
 ibm/virnetserver-fix-some-memory-leaks-in-virNetTLSConte.patch
+ibm/librbd-encryption.patch
