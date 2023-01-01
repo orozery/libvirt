@@ -145,6 +145,11 @@ The top-level ``domainsnapshot`` element may contain the following elements:
       driver and supported values are ``file``, ``block`` and ``network``
       :since:`(since 1.2.2)`.
 
+      :since:`Since 9.1.0` the ``disk`` element supports an optional attribute
+            ``snapshotName`` if the ``snapshot`` attribute is set to ``internal``. This
+            attribute specifies the name that will be used to refer to the
+            internal disk snapshot.
+
       ``source``
 
          If the snapshot mode is external (whether specified or inherited),

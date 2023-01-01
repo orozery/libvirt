@@ -209,6 +209,10 @@
           <value>manual</value>
         </attribute>
       </choice>
+      <optional>
+        <attribute name="snapshotName">
+        </attribute>
+      </optional>
     </element>
   </define>
 

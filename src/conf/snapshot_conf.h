@@ -57,6 +57,8 @@ struct _virDomainSnapshotDiskDef {
     /* details of wrapper external file. src is always non-NULL.
      * XXX optimize this to allow NULL for internal snapshots? */
     virStorageSource *src;
+
+    char *snapshot_name; /* snapshot name for internal snapshots */
 };
 
 void

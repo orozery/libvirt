@@ -150,6 +150,8 @@ virDomainSnapshotDiskDefParseXML(xmlNodePtr node,
                               VIR_STORAGE_TYPE_FILE) < 0)
         return -1;
 
+    def->snapshot_name = virXMLPropString(node, "snapshotName");
+
     if (src->type == VIR_STORAGE_TYPE_VOLUME ||
         src->type == VIR_STORAGE_TYPE_DIR) {
         virReportError(VIR_ERR_XML_ERROR,
@@ -191,6 +193,10 @@ virDomainSnapshotDiskDefParseXML(xmlNodePtr node,
     if (def->snapshot == VIR_DOMAIN_SNAPSHOT_LOCATION_DEFAULT &&
         (src->path || src->format))
         def->snapshot = VIR_DOMAIN_SNAPSHOT_LOCATION_EXTERNAL;
+
+    if (def->snapshot == VIR_DOMAIN_SNAPSHOT_LOCATION_DEFAULT &&
+        def->snapshot_name)
+        def->snapshot = VIR_DOMAIN_SNAPSHOT_LOCATION_INTERNAL;
 
     def->name = g_steal_pointer(&name);
     def->src = g_steal_pointer(&src);
@@ -670,6 +676,15 @@ virDomainSnapshotAlignDisks(virDomainSnapshotDef *snapdef,
             return -1;
         }
 
+        if (snapdisk->snapshot_name &&
+            snapdisk->snapshot != VIR_DOMAIN_SNAPSHOT_LOCATION_INTERNAL) {
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                           _("snapshotName for disk '%s' requires "
+                             "use of internal snapshot mode"),
+                           snapdisk->name);
+            return -1;
+        }
+
         if (snapdisk->src->path &&
             snapdisk->snapshot != VIR_DOMAIN_SNAPSHOT_LOCATION_EXTERNAL) {
             virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
@@ -714,6 +729,16 @@ virDomainSnapshotAlignDisks(virDomainSnapshotDef *snapdef,
     if (virDomainSnapshotDefAssignExternalNames(snapdef) < 0)
         return -1;
 
+    /* set default snapshot name for internal snapshots */
+    for (i = 0; i < snapdef->ndisks; i++) {
+        virDomainSnapshotDiskDef * disk = &snapdef->disks[i];
+
+        if (disk->snapshot == VIR_DOMAIN_SNAPSHOT_LOCATION_INTERNAL &&
+            !disk->snapshot_name) {
+            disk->snapshot_name = g_strdup(snapdef->parent.name);
+        }
+    }
+
     return 0;
 }
 
@@ -748,6 +773,8 @@ virDomainSnapshotDiskDefFormat(virBuffer *buf,
     if (disk->snapshot > 0)
         virBufferAsprintf(&attrBuf, " snapshot='%s'",
                           virDomainSnapshotLocationTypeToString(disk->snapshot));
+    if (disk->snapshot_name)
+        virBufferAsprintf(&attrBuf, " snapshotName='%s'", disk->snapshot_name);
 
     if (disk->snapshotDeleteInProgress)
         virBufferAddLit(&childBuf, "<snapshotDeleteInProgress/>\n");

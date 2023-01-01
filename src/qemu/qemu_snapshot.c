@@ -660,6 +660,15 @@ qemuSnapshotPrepare(virDomainObj *vm,
                                virStorageFileFormatTypeToString(dom_disk->src->format));
                 return -1;
             }
+
+            if (disk->snapshot_name) {
+                virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                               _("snapshot name setting for disk %s unsupported "
+                                 "for storage type %s"),
+                               disk->name,
+                               virStorageFileFormatTypeToString(dom_disk->src->format));
+                return -1;
+            }
             break;
 
         case VIR_DOMAIN_SNAPSHOT_LOCATION_EXTERNAL:
