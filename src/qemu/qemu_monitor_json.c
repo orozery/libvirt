@@ -8307,6 +8307,20 @@ qemuMonitorJSONTransactionSnapshotBlockdev(virJSONValue *actions,
                                          NULL);
 }
 
+
+int
+qemuMonitorJSONTransactionInternalSnapshotBlockdev(virJSONValue *actions,
+                                                   const char *device,
+                                                   const char *name)
+{
+    return qemuMonitorJSONTransactionAdd(actions,
+                                         "blockdev-snapshot-internal-sync",
+                                         "s:device", device,
+                                         "s:name", name,
+                                         NULL);
+}
+
+
 VIR_ENUM_DECL(qemuMonitorTransactionBackupSyncMode);
 VIR_ENUM_IMPL(qemuMonitorTransactionBackupSyncMode,
               QEMU_MONITOR_TRANSACTION_BACKUP_SYNC_MODE_LAST,

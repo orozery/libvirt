@@ -10,7 +10,7 @@
   <disks>
     <disk name='hda' snapshot='no'/>
     <disk name='hdb' snapshot='no'/>
-    <disk name='hdc' snapshot='internal'/>
+    <disk name='hdc' snapshot='internal' snapshotName='snap1'/>
     <disk name='hdd' snapshot='external' type='file'>
       <driver type='qed'/>
       <source file='/path/to/generated4'/>

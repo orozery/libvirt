@@ -4226,6 +4226,15 @@ qemuMonitorTransactionSnapshotBlockdev(virJSONValue *actions,
 
 
 int
+qemuMonitorTransactionInternalSnapshotBlockdev(virJSONValue *actions,
+                                               const char *device,
+                                               const char *name)
+{
+    return qemuMonitorJSONTransactionInternalSnapshotBlockdev(actions, device, name);
+}
+
+
+int
 qemuMonitorTransactionBackup(virJSONValue *actions,
                              const char *device,
                              const char *jobname,

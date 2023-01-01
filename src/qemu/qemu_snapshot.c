@@ -736,7 +736,7 @@ qemuSnapshotPrepare(virDomainObj *vm,
     }
 
     /* disk snapshot requires at least one disk */
-    if (def->state == VIR_DOMAIN_SNAPSHOT_DISK_SNAPSHOT && !external) {
+    if (def->state == VIR_DOMAIN_SNAPSHOT_DISK_SNAPSHOT && !external && !found_internal) {
         virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
                        _("disk-only snapshots require at least "
                          "one disk to be selected for snapshot"));
@@ -852,6 +852,7 @@ qemuSnapshotDiskCleanup(qemuSnapshotDiskData *data,
 struct _qemuSnapshotDiskContext {
     qemuSnapshotDiskData *dd;
     size_t ndd;
+    bool has_internal;
 
     virJSONValue *actions;
 
@@ -1070,17 +1071,17 @@ qemuSnapshotDiskPrepareOne(qemuSnapshotDiskContext *snapctxt,
 
 
 /**
- * qemuSnapshotDiskPrepareActiveExternal:
+ * qemuSnapshotDiskPrepareActive:
  *
  * Collects and prepares a list of structures that hold information about disks
  * that are selected for the snapshot.
  */
 static qemuSnapshotDiskContext *
-qemuSnapshotDiskPrepareActiveExternal(virDomainObj *vm,
-                                      virDomainMomentObj *snap,
-                                      bool reuse,
-                                      GHashTable *blockNamedNodeData,
-                                      virDomainAsyncJob asyncJob)
+qemuSnapshotDiskPrepareActive(virDomainObj *vm,
+                              virDomainMomentObj *snap,
+                              bool reuse,
+                              GHashTable *blockNamedNodeData,
+                              virDomainAsyncJob asyncJob)
 {
     g_autoptr(qemuSnapshotDiskContext) snapctxt = NULL;
     size_t i;
@@ -1089,16 +1090,33 @@ qemuSnapshotDiskPrepareActiveExternal(virDomainObj *vm,
     snapctxt = qemuSnapshotDiskContextNew(snapdef->ndisks, vm, asyncJob);
 
     for (i = 0; i < snapdef->ndisks; i++) {
-        if (snapdef->disks[i].snapshot != VIR_DOMAIN_SNAPSHOT_LOCATION_EXTERNAL)
-            continue;
+        switch (snapdef->disks[i].snapshot) {
+            case VIR_DOMAIN_SNAPSHOT_LOCATION_EXTERNAL: {
+                if (qemuSnapshotDiskPrepareOne(snapctxt,
+                                               vm->def->disks[i],
+                                               snapdef->disks + i,
+                                               blockNamedNodeData,
+                                               reuse,
+                                               true) < 0)
+                    return NULL;
+                break;
+            }
 
-        if (qemuSnapshotDiskPrepareOne(snapctxt,
-                                       vm->def->disks[i],
-                                       snapdef->disks + i,
-                                       blockNamedNodeData,
-                                       reuse,
-                                       true) < 0)
-            return NULL;
+            case VIR_DOMAIN_SNAPSHOT_LOCATION_INTERNAL: {
+                snapctxt->has_internal = true;
+                if (qemuMonitorTransactionInternalSnapshotBlockdev(snapctxt->actions,
+                                                                   vm->def->disks[i]->src->nodeformat,
+                                                                   snapdef->disks[i].snapshot_name) < 0)
+                    return NULL;
+                break;
+            }
+
+            case VIR_DOMAIN_SNAPSHOT_LOCATION_DEFAULT:
+            case VIR_DOMAIN_SNAPSHOT_LOCATION_NO:
+            case VIR_DOMAIN_SNAPSHOT_LOCATION_MANUAL:
+            case VIR_DOMAIN_SNAPSHOT_LOCATION_LAST:
+                continue;
+        }
     }
 
     return g_steal_pointer(&snapctxt);
@@ -1182,7 +1200,7 @@ qemuSnapshotDiskCreate(qemuSnapshotDiskContext *snapctxt)
     int rc;
 
     /* check whether there's anything to do */
-    if (snapctxt->ndd == 0)
+    if (snapctxt->ndd == 0 && !snapctxt->has_internal)
         return 0;
 
     if (qemuDomainObjEnterMonitorAsync(snapctxt->vm, snapctxt->asyncJob) < 0)
@@ -1215,11 +1233,11 @@ qemuSnapshotDiskCreate(qemuSnapshotDiskContext *snapctxt)
 
 /* The domain is expected to be locked and active. */
 static int
-qemuSnapshotCreateActiveExternalDisks(virDomainObj *vm,
-                                      virDomainMomentObj *snap,
-                                      GHashTable *blockNamedNodeData,
-                                      unsigned int flags,
-                                      virDomainAsyncJob asyncJob)
+qemuSnapshotCreateActiveDisks(virDomainObj *vm,
+                              virDomainMomentObj *snap,
+                              GHashTable *blockNamedNodeData,
+                              unsigned int flags,
+                              virDomainAsyncJob asyncJob)
 {
     bool reuse = (flags & VIR_DOMAIN_SNAPSHOT_CREATE_REUSE_EXT) != 0;
     g_autoptr(qemuSnapshotDiskContext) snapctxt = NULL;
@@ -1229,8 +1247,8 @@ qemuSnapshotCreateActiveExternalDisks(virDomainObj *vm,
 
     /* prepare a list of objects to use in the vm definition so that we don't
      * have to roll back later */
-    if (!(snapctxt = qemuSnapshotDiskPrepareActiveExternal(vm, snap, reuse,
-                                                           blockNamedNodeData, asyncJob)))
+    if (!(snapctxt = qemuSnapshotDiskPrepareActive(vm, snap, reuse,
+                                                   blockNamedNodeData, asyncJob)))
         return -1;
 
     if (qemuSnapshotDiskCreate(snapctxt) < 0)
@@ -1370,9 +1388,9 @@ qemuSnapshotCreateActiveExternal(virQEMUDriver *driver,
 
     /* the domain is now paused if a memory snapshot was requested */
 
-    if ((ret = qemuSnapshotCreateActiveExternalDisks(vm, snap,
-                                                     blockNamedNodeData, flags,
-                                                     VIR_ASYNC_JOB_SNAPSHOT)) < 0)
+    if ((ret = qemuSnapshotCreateActiveDisks(vm, snap,
+                                             blockNamedNodeData, flags,
+                                             VIR_ASYNC_JOB_SNAPSHOT)) < 0)
         goto cleanup;
 
     /* the snapshot is complete now */

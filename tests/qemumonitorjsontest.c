@@ -2587,6 +2587,7 @@ testQemuMonitorJSONTransaction(const void *opaque)
         qemuMonitorTransactionBitmapDisable(actions, "node4", "bitmap4") < 0 ||
         qemuMonitorTransactionBitmapMerge(actions, "node5", "bitmap5", &mergebitmaps) < 0 ||
         qemuMonitorTransactionSnapshotBlockdev(actions, "node7", "overlay7") < 0 ||
+        qemuMonitorTransactionInternalSnapshotBlockdev(actions, "device1", "snapshot1") < 0 ||
         qemuMonitorTransactionBackup(actions, "dev8", "job8", "target8", "bitmap8",
                                      QEMU_MONITOR_TRANSACTION_BACKUP_SYNC_MODE_NONE) < 0 ||
         qemuMonitorTransactionBackup(actions, "dev9", "job9", "target9", "bitmap9",

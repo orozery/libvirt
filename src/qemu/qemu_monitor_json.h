@@ -780,6 +780,11 @@ qemuMonitorJSONTransactionSnapshotBlockdev(virJSONValue *actions,
                                            const char *overlay);
 
 int
+qemuMonitorJSONTransactionInternalSnapshotBlockdev(virJSONValue *actions,
+                                                   const char *device,
+                                                   const char *name);
+
+int
 qemuMonitorJSONTransactionBackup(virJSONValue *actions,
                                  const char *device,
                                  const char *jobname,

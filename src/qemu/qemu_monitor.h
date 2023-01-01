@@ -1411,6 +1411,11 @@ qemuMonitorTransactionSnapshotBlockdev(virJSONValue *actions,
                                        const char *node,
                                        const char *overlay);
 
+int
+qemuMonitorTransactionInternalSnapshotBlockdev(virJSONValue *actions,
+                                               const char *device,
+                                               const char *name);
+
 typedef enum {
     QEMU_MONITOR_TRANSACTION_BACKUP_SYNC_MODE_NONE = 0,
     QEMU_MONITOR_TRANSACTION_BACKUP_SYNC_MODE_INCREMENTAL,
