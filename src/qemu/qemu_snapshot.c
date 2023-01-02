@@ -746,10 +746,9 @@ qemuSnapshotPrepare(virDomainObj *vm,
         return -1;
     }
 
-    /* For now, we don't allow mixing internal and external disks.
-     * XXX technically, we could mix internal and external disks for
+    /* For now, we don't allow mixing internal and external disks for
      * offline snapshots */
-    if ((found_internal && external) ||
+    if ((found_internal && external && !active) ||
          (def->memory == VIR_DOMAIN_SNAPSHOT_LOCATION_INTERNAL && external) ||
          (def->memory == VIR_DOMAIN_SNAPSHOT_LOCATION_EXTERNAL && found_internal)) {
         virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
