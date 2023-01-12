@@ -1490,9 +1490,9 @@ qemuBlockStorageSourceAttachApply(qemuMonitor *mon,
                                   qemuBlockStorageSourceAttachData *data)
 {
     if (qemuBlockStorageSourceAttachApplyStorageDeps(mon, data) < 0 ||
+        qemuBlockStorageSourceAttachApplyFormatDeps(mon, data) < 0 ||
         qemuBlockStorageSourceAttachApplyStorage(mon, data) < 0 ||
         qemuBlockStorageSourceAttachApplyStorageSlice(mon, data) < 0 ||
-        qemuBlockStorageSourceAttachApplyFormatDeps(mon, data) < 0 ||
         qemuBlockStorageSourceAttachApplyFormat(mon, data) < 0)
         return -1;
 
