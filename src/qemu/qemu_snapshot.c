@@ -630,6 +630,8 @@ qemuSnapshotPrepare(virDomainObj *vm,
     for (i = 0; i < def->ndisks; i++) {
         virDomainSnapshotDiskDef *disk = &def->disks[i];
         virDomainDiskDef *dom_disk = vm->def->disks[i];
+        bool is_raw_rbd = (dom_disk->src->format == VIR_STORAGE_FILE_RAW &&
+                           dom_disk->src->protocol == VIR_STORAGE_NET_PROTOCOL_RBD);
 
         if (disk->snapshot != VIR_DOMAIN_SNAPSHOT_LOCATION_NO &&
             qemuDomainDiskBlockJobIsActive(dom_disk))
@@ -639,7 +641,7 @@ qemuSnapshotPrepare(virDomainObj *vm,
         case VIR_DOMAIN_SNAPSHOT_LOCATION_INTERNAL:
             found_internal = true;
 
-            if (def->state == VIR_DOMAIN_SNAPSHOT_DISK_SNAPSHOT && active) {
+            if (def->state == VIR_DOMAIN_SNAPSHOT_DISK_SNAPSHOT && active && !is_raw_rbd) {
                 virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
                                _("active qemu domains require external disk "
                                  "snapshots; disk %s requested internal"),
@@ -652,7 +654,8 @@ qemuSnapshotPrepare(virDomainObj *vm,
                 return -1;
 
             if (dom_disk->src->format > 0 &&
-                dom_disk->src->format != VIR_STORAGE_FILE_QCOW2) {
+                dom_disk->src->format != VIR_STORAGE_FILE_QCOW2 &&
+                !is_raw_rbd) {
                 virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
                                _("internal snapshot for disk %s unsupported "
                                  "for storage type %s"),
