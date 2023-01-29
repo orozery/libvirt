@@ -1828,6 +1828,12 @@ qemuSnapshotRevertValidate(virDomainObj *vm,
         return -1;
     }
 
+    if (virDomainSnapshotIsNonFullInternal(snap)) {
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                       _("revert to a non-full internal snapshot not supported yet"));
+        return -1;
+    }
+
     if (!snap->def->dom) {
         virReportError(VIR_ERR_SNAPSHOT_REVERT_RISKY,
                        _("snapshot '%s' lacks domain '%s' rollback info"),
@@ -3061,6 +3067,12 @@ qemuSnapshotDeleteValidate(virDomainObj *vm,
                            virDomainMomentObj *snap,
                            unsigned int flags)
 {
+    if (virDomainSnapshotIsNonFullInternal(snap)) {
+        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                       _("deletion of a non-full internal snapshot not supported yet"));
+        return -1;
+    }
+
     if (!virDomainSnapshotIsExternal(snap) &&
         virDomainObjIsActive(vm)) {
         ssize_t i;

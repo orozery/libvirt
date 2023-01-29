@@ -945,6 +945,35 @@ virDomainSnapshotIsExternal(virDomainMomentObj *snap)
     return virDomainSnapshotDefIsExternal(def);
 }
 
+bool
+virDomainSnapshotDefIsNonFullInternal(virDomainSnapshotDef *def)
+{
+    bool has_internal = false;
+    bool is_full = true;
+    size_t i;
+
+    for (i = 0; i < def->ndisks; i++) {
+        if (def->disks[i].snapshot == VIR_DOMAIN_SNAPSHOT_LOCATION_INTERNAL) {
+            has_internal = true;
+        } else {
+            is_full = false;
+        }
+    }
+
+    if (def->memory == VIR_DOMAIN_SNAPSHOT_LOCATION_INTERNAL)
+        return !is_full;
+
+    return has_internal;
+}
+
+bool
+virDomainSnapshotIsNonFullInternal(virDomainMomentObj *snap)
+{
+    virDomainSnapshotDef *def = virDomainSnapshotObjGetDef(snap);
+
+    return virDomainSnapshotDefIsNonFullInternal(def);
+}
+
 int
 virDomainSnapshotRedefinePrep(virDomainObj *vm,
                               virDomainSnapshotDef *snapdef,
