@@ -664,7 +664,7 @@ qemuSnapshotPrepare(virDomainObj *vm,
                 return -1;
             }
 
-            if (disk->snapshot_name) {
+            if (disk->snapshot_name && !is_raw_rbd) {
                 virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
                                _("snapshot name setting for disk %s unsupported "
                                  "for storage type %s"),
