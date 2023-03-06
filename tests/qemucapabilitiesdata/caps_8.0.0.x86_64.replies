@@ -17035,6 +17035,10 @@
         {
           "case": "luks2",
           "type": "668"
+        },
+        {
+          "case": "luks-any",
+          "type": "668"
         }
       ],
       "members": [
@@ -20003,6 +20007,9 @@
         },
         {
           "name": "luks2"
+        },
+        {
+          "name": "luks-any"
         }
       ],
       "meta-type": "enum",
