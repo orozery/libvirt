@@ -5136,8 +5136,10 @@ qemuDomainValidateStorageSource(virStorageSource *src,
                         break;
 
                     case VIR_STORAGE_ENCRYPTION_FORMAT_LUKS2:
-                        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
-                                       _("luks2 is currently not supported by the qemu encryption engine"));
+                    case VIR_STORAGE_ENCRYPTION_FORMAT_LUKS_ANY:
+                        virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
+                                       _("%s is currently not supported by the qemu encryption engine"),
+                                       virStorageEncryptionFormatTypeToString(src->encryption->format));
                         return -1;
 
                     case VIR_STORAGE_ENCRYPTION_FORMAT_DEFAULT:
@@ -5162,6 +5164,32 @@ qemuDomainValidateStorageSource(virStorageSource *src,
                     virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
                                    _("librbd encryption is supported only with RBD backed disks"));
                     return -1;
+                }
+
+                switch ((virStorageEncryptionFormatType) src->encryption->format) {
+                    case VIR_STORAGE_ENCRYPTION_FORMAT_LUKS:
+                    case VIR_STORAGE_ENCRYPTION_FORMAT_LUKS2:
+                        break;
+
+                    case VIR_STORAGE_ENCRYPTION_FORMAT_LUKS_ANY:
+                        if (!virQEMUCapsGet(qemuCaps, QEMU_CAPS_RBD_ENCRYPTION_LUKS_ANY)) {
+                            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                                           _("luks-any encryption is not supported by this QEMU binary"));
+                            return -1;
+                        }
+                        break;
+
+                    case VIR_STORAGE_ENCRYPTION_FORMAT_QCOW:
+                        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                                       _("qcow encryption format is not supported by the librbd encryption engine"));
+                        return -1;
+
+                    case VIR_STORAGE_ENCRYPTION_FORMAT_DEFAULT:
+                    case VIR_STORAGE_ENCRYPTION_FORMAT_LAST:
+                    default:
+                        virReportEnumRangeError(virStorageEncryptionFormatType,
+                                                src->encryption->format);
+                        return -1;
                 }
                 break;
 

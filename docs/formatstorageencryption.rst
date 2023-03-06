@@ -104,6 +104,15 @@ it to control such disks. However, pre-formatted RBD luks2 disks can be loaded
 to a qemu VM using the qemu VM driver. A single
 ``<secret type='passphrase'...>`` element is expected.
 
+``luks-any`` format
+~~~~~~~~~~~~~~~~~~~
+
+The ``luks-any`` format is currently supported only by the ``librbd`` engine,
+and can only be applied to RBD network disks (RBD images). This format will try
+to parse the disk as either LUKS or LUKS2, depending on the actual on-disk
+format. A single ``<secret type='passphrase'...>`` element is expected (except
+for the case of RBD layered encryption mentioned above) :since:`Since 9.3.0` .
+
 Examples
 --------
 
