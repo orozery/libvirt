@@ -206,6 +206,7 @@
   <flag name='cryptodev-backend-lkcf'/>
   <flag name='pvpanic-pci'/>
   <flag name='netdev.stream.reconnect'/>
+  <flag name='rbd-encryption-luks-any'/>
   <version>7002050</version>
   <kvmVersion>0</kvmVersion>
   <microcodeVersion>43100244</microcodeVersion>
